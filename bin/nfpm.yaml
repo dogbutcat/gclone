@@ -1,0 +1,20 @@
+name: "gclone"
+arch: "{{.Arch}}"
+platform: "linux"
+version: "{{.Version}}"
+section: "default"
+priority: "extra"
+provides:
+  - gclone
+maintainer: "dogbutcat"
+description: |
+  gclone - "rsync for cloud storage"
+    is a command line program to sync files and directories to and
+    from most cloud providers. It can also mount, tree, ncdu and lots
+    of other useful things.
+vendor: "gclone"
+homepage: "https://rclone.org"
+license: "MIT"
+contents:
+  - src: ./gclone
+    dst: /usr/bin/gclone
