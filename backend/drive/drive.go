@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"log"
 	"math/rand"
 	"mime"
 	"net/http"
@@ -70,8 +69,8 @@ const (
 	defaultScope                = "drive"
 	// chunkSize is the size of the chunks created during a resumable upload and should be a power of two.
 	// 1<<18 is the minimum size supported by the Google uploader, and there is no maximum.
-	minChunkSize     = 256 * fs.KibiByte
-	defaultChunkSize = 8 * fs.MebiByte
+	minChunkSize     = 256 * fs.Kibi
+	defaultChunkSize = 8 * fs.Mebi
 	partialFields    = "id,name,size,md5Checksum,trashed,explicitlyTrashed,modifiedTime,createdTime,mimeType,parents,webViewLink,shortcutDetails,exportLinks"
 	listRGrouping    = 50   // number of IDs to search at once when using ListR
 	listRInputBuffer = 1000 // size of input buffer when using ListR
@@ -185,32 +184,71 @@ func init() {
 		Description: "Google Drive",
 		NewFs:       NewFs,
 		CommandHelp: commandHelp,
-		Config: func(ctx context.Context, name string, m configmap.Mapper) {
+		Config: func(ctx context.Context, name string, m configmap.Mapper, config fs.ConfigIn) (*fs.ConfigOut, error) {
 			// Parse config into Options struct
 			opt := new(Options)
 			err := configstruct.Set(m, opt)
 			if err != nil {
-				fs.Errorf(nil, "Couldn't parse config into struct: %v", err)
-				return
+				return nil, errors.Wrap(err, "couldn't parse config into struct")
 			}
 
-			// Fill in the scopes
-			driveConfig.Scopes = driveScopes(opt.Scope)
-			// Set the root_folder_id if using drive.appfolder
-			if driveScopesContainsAppFolder(driveConfig.Scopes) {
-				m.Set("root_folder_id", "appDataFolder")
-			}
+			switch config.State {
+			case "":
+				// Fill in the scopes
+				driveConfig.Scopes = driveScopes(opt.Scope)
 
-			if opt.ServiceAccountFile == "" && opt.ServiceAccountCredentials == "" {
-				err = oauthutil.Config(ctx, "drive", name, m, driveConfig, nil)
-				if err != nil {
-					log.Fatalf("Failed to configure token: %v", err)
+				// Set the root_folder_id if using drive.appfolder
+				if driveScopesContainsAppFolder(driveConfig.Scopes) {
+					m.Set("root_folder_id", "appDataFolder")
 				}
+
+				if opt.ServiceAccountFile == "" && opt.ServiceAccountCredentials == "" {
+					return oauthutil.ConfigOut("teamdrive", &oauthutil.Options{
+						OAuth2Config: driveConfig,
+					})
+				}
+				return fs.ConfigGoto("teamdrive")
+			case "teamdrive":
+				if opt.TeamDriveID == "" {
+					return fs.ConfigConfirm("teamdrive_ok", false, "config_change_team_drive", "Configure this as a Shared Drive (Team Drive)?\n")
+				}
+				return fs.ConfigConfirm("teamdrive_change", false, "config_change_team_drive", fmt.Sprintf("Change current Shared Drive (Team Drive) ID %q?\n", opt.TeamDriveID))
+			case "teamdrive_ok":
+				if config.Result == "false" {
+					m.Set("team_drive", "")
+					return nil, nil
+				}
+				return fs.ConfigGoto("teamdrive_config")
+			case "teamdrive_change":
+				if config.Result == "false" {
+					return nil, nil
+				}
+				return fs.ConfigGoto("teamdrive_config")
+			case "teamdrive_config":
+				f, err := newFs(ctx, name, "", m)
+				if err != nil {
+					return nil, errors.Wrap(err, "failed to make Fs to list Shared Drives")
+				}
+				teamDrives, err := f.listTeamDrives(ctx)
+				if err != nil {
+					return nil, err
+				}
+				if len(teamDrives) == 0 {
+					return fs.ConfigError("", "No Shared Drives found in your account")
+				}
+				return fs.ConfigChoose("teamdrive_final", "config_team_drive", "Shared Drive", len(teamDrives), func(i int) (string, string) {
+					teamDrive := teamDrives[i]
+					return teamDrive.Id, teamDrive.Name
+				})
+			case "teamdrive_final":
+				driveID := config.Result
+				m.Set("team_drive", driveID)
+				m.Set("root_folder_id", "")
+				opt.TeamDriveID = driveID
+				opt.RootFolderID = ""
+				return nil, nil
 			}
-			err = configTeamDrive(ctx, opt, m, name)
-			if err != nil {
-				log.Fatalf("Failed to configure Shared Drive: %v", err)
-			}
+			return nil, fmt.Errorf("unknown state %q", config.State)
 		},
 		Options: append(driveOAuthOptions(), []fs.Option{{
 			Name: "scope",
@@ -235,7 +273,6 @@ func init() {
 			Name: "root_folder_id",
 			Help: `ID of the root folder
 Leave blank normally.
-
 Fill in to access "Computers" folders (see docs), or for rclone to use
 a non root folder as its starting point.
 `,
@@ -271,15 +308,11 @@ a non root folder as its starting point.
 			Name:    "skip_checksum_gphotos",
 			Default: false,
 			Help: `Skip MD5 checksum on Google photos and videos only.
-
 Use this if you get checksum errors when transferring Google photos or
 videos.
-
 Setting this flag will cause Google photos and videos to return a
 blank MD5 checksum.
-
 Google photos are identified by being in the "photos" space.
-
 Corrupted checksums are caused by Google modifying the image/video but
 not updating the checksum.`,
 			Advanced: true,
@@ -287,11 +320,9 @@ not updating the checksum.`,
 			Name:    "shared_with_me",
 			Default: false,
 			Help: `Only show files that are shared with me.
-
 Instructs rclone to operate on your "Shared with me" folder (where
 Google Drive lets you access the files and folders others have shared
 with you).
-
 This works both with the "list" (lsd, lsl, etc.) and the "copy"
 commands (copy, sync, etc.), and with all other commands too.`,
 			Advanced: true,
@@ -330,17 +361,13 @@ commands (copy, sync, etc.), and with all other commands too.`,
 			Name:    "use_created_date",
 			Default: false,
 			Help: `Use file created date instead of modified date.,
-
 Useful when downloading data and you want the creation date used in
 place of the last modified date.
-
 **WARNING**: This flag may have some unexpected consequences.
-
 When uploading to your drive all files will be overwritten unless they
 haven't been modified since their creation. And the inverse will occur
 while downloading.  This side effect can be avoided by using the
 "--checksum" flag.
-
 This feature was implemented to retain photos capture date as recorded
 by google photos. You will first need to check the "Create a Google
 Photos folder" option in your google drive settings. You can then copy
@@ -352,10 +379,8 @@ or move the photos locally and use the date the image was taken
 			Name:    "use_shared_date",
 			Default: false,
 			Help: `Use date file was shared instead of modified date.
-
 Note that, as with "--drive-use-created-date", this flag may have
 unexpected consequences when uploading/downloading files.
-
 If both this flag and "--drive-use-created-date" are set, the created
 date is used.`,
 			Advanced: true,
@@ -384,17 +409,14 @@ date is used.`,
 			Name:    "chunk_size",
 			Default: defaultChunkSize,
 			Help: `Upload chunk size. Must a power of 2 >= 256k.
-
 Making this larger will improve performance, but note that each chunk
 is buffered in memory one per transfer.
-
 Reducing this will reduce memory usage but decrease performance.`,
 			Advanced: true,
 		}, {
 			Name:    "acknowledge_abuse",
 			Default: false,
 			Help: `Set to allow files which return cannotDownloadAbusiveFile to be downloaded.
-
 If downloading a file returns the error "This file has been identified
 as malware or spam and cannot be downloaded" with the error code
 "cannotDownloadAbusiveFile" then supply this flag to rclone to
@@ -410,17 +432,13 @@ will download it anyway.`,
 			Name:    "size_as_quota",
 			Default: false,
 			Help: `Show sizes as storage quota usage, not actual size.
-
 Show the size of a file as the storage quota used. This is the
 current version plus any older versions that have been set to keep
 forever.
-
 **WARNING**: This flag may have some unexpected consequences.
-
 It is not recommended to set this flag in your config - the
 recommended usage is using the flag form --drive-size-as-quota when
 doing rclone ls/lsl/lsf/lsjson/etc only.
-
 If you do use this flag for syncing (not recommended) then you will
 need to use --ignore size also.`,
 			Advanced: true,
@@ -444,7 +462,6 @@ need to use --ignore size also.`,
 			Name:    "server_side_across_configs",
 			Default: false,
 			Help: `Allow server-side operations (e.g. copy) to work across different drive configs.
-
 This can be useful if you wish to do a server-side copy between two
 different Google drives.  Note that this isn't enabled by default
 because it isn't easy to tell if it will work between any two
@@ -454,30 +471,24 @@ configurations.`,
 			Name:    "disable_http2",
 			Default: true,
 			Help: `Disable drive using http2
-
 There is currently an unsolved issue with the google drive backend and
 HTTP/2.  HTTP/2 is therefore disabled by default for the drive backend
 but can be re-enabled here.  When the issue is solved this flag will
 be removed.
-
 See: https://github.com/rclone/rclone/issues/3631
-
 `,
 			Advanced: true,
 		}, {
 			Name:    "stop_on_upload_limit",
 			Default: false,
 			Help: `Make upload limit errors be fatal
-
-At the time of writing it is only possible to upload 750GB of data to
+At the time of writing it is only possible to upload 750 GiB of data to
 Google Drive a day (this is an undocumented limit). When this limit is
 reached Google Drive produces a slightly different error message. When
 this flag is set it causes these errors to be fatal.  These will stop
 the in-progress sync.
-
 Note that this detection is relying on error message strings which
 Google don't document so it may break in the future.
-
 See: https://github.com/rclone/rclone/issues/3857
 `,
 			Advanced: true,
@@ -485,13 +496,11 @@ See: https://github.com/rclone/rclone/issues/3857
 			Name:    "stop_on_download_limit",
 			Default: false,
 			Help: `Make download limit errors be fatal
-
-At the time of writing it is only possible to download 10TB of data from
+At the time of writing it is only possible to download 10 TiB of data from
 Google Drive a day (this is an undocumented limit). When this limit is
 reached Google Drive produces a slightly different error message. When
 this flag is set it causes these errors to be fatal.  These will stop
 the in-progress sync.
-
 Note that this detection is relying on error message strings which
 Google don't document so it may break in the future.
 `,
@@ -499,7 +508,6 @@ Google don't document so it may break in the future.
 		}, {
 			Name: "skip_shortcuts",
 			Help: `If set skip shortcut files
-
 Normally rclone dereferences shortcut files making them appear as if
 they are the original file (see [the shortcuts section](#shortcuts)).
 If this flag is set then rclone will ignore shortcut files completely.
@@ -524,7 +532,7 @@ If this flag is set then rclone will ignore shortcut files completely.
 	} {
 		for mimeType, extension := range m {
 			if err := mime.AddExtensionType(extension, mimeType); err != nil {
-				log.Fatalf("Failed to register MIME type %q: %v", mimeType, err)
+				fs.Errorf("Failed to register MIME type %q: %v", mimeType, err)
 			}
 		}
 	}
@@ -532,10 +540,10 @@ If this flag is set then rclone will ignore shortcut files completely.
 
 // Options defines the configuration for this backend
 type Options struct {
-	Scope                     string               `config:"scope"`
-	RootFolderID              string               `config:"root_folder_id"`
-	ServiceAccountFile        string               `config:"service_account_file"`
-	// 添加一个变量
+	Scope              string `config:"scope"`
+	RootFolderID       string `config:"root_folder_id"`
+	ServiceAccountFile string `config:"service_account_file"`
+	// add service file path
 	ServiceAccountFilePath    string               `config:"service_account_file_path"`
 	ServiceAccountCredentials string               `config:"service_account_credentials"`
 	TeamDriveID               string               `config:"team_drive"`
@@ -592,11 +600,10 @@ type Fs struct {
 	listRmu          *sync.Mutex         // protects listRempties
 	listRempties     map[string]struct{} // IDs of supposedly empty directories which triggered grouping disable
 	//------------------------------------------------------------
-	ServiceAccountFiles    	  map[string]int
-	waitChangeSvc sync.Mutex
-	FileObj *fs.Object
-	FileName string
-
+	ServiceAccountFiles map[string]int
+	waitChangeSvc       sync.Mutex
+	FileObj             *fs.Object
+	FileName            string
 }
 
 type baseObject struct {
@@ -671,7 +678,7 @@ func (f *Fs) shouldRetry(ctx context.Context, err error) (bool, error) {
 			reason := gerr.Errors[0].Reason
 			if reason == "rateLimitExceeded" || reason == "userRateLimitExceeded" {
 				// 如果存在 ServiceAccountFilePath,调用 changeSvc, 重试
-				if(f.opt.ServiceAccountFilePath != ""){
+				if f.opt.ServiceAccountFilePath != "" {
 					f.waitChangeSvc.Lock()
 					f.changeSvc(ctx)
 					f.waitChangeSvc.Unlock()
@@ -694,13 +701,13 @@ func (f *Fs) shouldRetry(ctx context.Context, err error) (bool, error) {
 	return false, err
 }
 
-// 替换 f.svc 函数
-func (f *Fs) changeSvc(ctx context.Context){
-	opt := &f.opt;
+// patch 1: 替换 service file
+func (f *Fs) changeSvc(ctx context.Context) {
+	opt := &f.opt
 	/**
 	 *  获取sa文件列表
 	 */
-	if(opt.ServiceAccountFilePath != "" && len(f.ServiceAccountFiles) == 0){
+	if opt.ServiceAccountFilePath != "" && len(f.ServiceAccountFiles) == 0 {
 		f.ServiceAccountFiles = make(map[string]int)
 		dir_list, e := ioutil.ReadDir(opt.ServiceAccountFilePath)
 		if e != nil {
@@ -708,15 +715,15 @@ func (f *Fs) changeSvc(ctx context.Context){
 		}
 		for i, v := range dir_list {
 			filePath := fmt.Sprintf("%s%s", opt.ServiceAccountFilePath, v.Name())
-			if(".json" == path.Ext(filePath)){
+			if ".json" == path.Ext(filePath) {
 				//fmt.Println(filePath)
 				f.ServiceAccountFiles[filePath] = i
 			}
 		}
 	}
 	// 如果读取文件夹后还是0 , 退出
-	if(len(f.ServiceAccountFiles) <= 0){
-		return ;
+	if len(f.ServiceAccountFiles) <= 0 {
+		return
 	}
 	/**
 	 *  从sa文件列表 随机取一个，并删除列表中的元素
@@ -1017,48 +1024,6 @@ func parseExtensions(extensionsIn ...string) (extensions, mimeTypes []string, er
 	return
 }
 
-// Figure out if the user wants to use a team drive
-func configTeamDrive(ctx context.Context, opt *Options, m configmap.Mapper, name string) error {
-	ci := fs.GetConfig(ctx)
-
-	// Stop if we are running non-interactive config
-	if ci.AutoConfirm {
-		return nil
-	}
-	if opt.TeamDriveID == "" {
-		fmt.Printf("Configure this as a Shared Drive (Team Drive)?\n")
-	} else {
-		fmt.Printf("Change current Shared Drive (Team Drive) ID %q?\n", opt.TeamDriveID)
-	}
-	if !config.Confirm(false) {
-		return nil
-	}
-	f, err := newFs(ctx, name, "", m)
-	if err != nil {
-		return errors.Wrap(err, "failed to make Fs to list Shared Drives")
-	}
-	fmt.Printf("Fetching Shared Drive list...\n")
-	teamDrives, err := f.listTeamDrives(ctx)
-	if err != nil {
-		return err
-	}
-	if len(teamDrives) == 0 {
-		fmt.Printf("No Shared Drives found in your account")
-		return nil
-	}
-	var driveIDs, driveNames []string
-	for _, teamDrive := range teamDrives {
-		driveIDs = append(driveIDs, teamDrive.Id)
-		driveNames = append(driveNames, teamDrive.Name)
-	}
-	driveID := config.Choose("Enter a Shared Drive ID", driveIDs, driveNames, true)
-	m.Set("team_drive", driveID)
-	m.Set("root_folder_id", "")
-	opt.TeamDriveID = driveID
-	opt.RootFolderID = ""
-	return nil
-}
-
 // getClient makes an http client according to the options
 func getClient(ctx context.Context, opt *Options) *http.Client {
 	t := fshttp.NewTransportCustom(ctx, func(t *http.Transport) {
@@ -1237,7 +1202,7 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 			}
 		}
 		f.rootFolderID = rootID
-		fs.Debugf(f, "root_folder_id = %q - save this in the config to speed up startup", rootID)
+		fs.Debugf(f, "'root_folder_id = %s' - save this in the config to speed up startup", rootID)
 	}
 
 	f.dirCache = dircache.New(f.root, f.rootFolderID, f)
@@ -1400,8 +1365,8 @@ func (f *Fs) newLinkObject(remote string, info *drive.File, extension, exportMim
 //
 // When the drive.File cannot be represented as an fs.Object it will return (nil, nil).
 func (f *Fs) newObjectWithInfo(ctx context.Context, remote string, info *drive.File) (fs.Object, error) {
-	// If item has MD5 sum or a length it is a file stored on drive
-	if info.Md5Checksum != "" || info.Size > 0 {
+	// If item has MD5 sum it is a file stored on drive
+	if info.Md5Checksum != "" {
 		return f.newRegularObject(remote, info), nil
 	}
 
@@ -1434,8 +1399,8 @@ func (f *Fs) newObjectWithExportInfo(
 		// Pretend a dangling shortcut is a regular object
 		// It will error if used, but appear in listings so it can be deleted
 		return f.newRegularObject(remote, info), nil
-	case info.Md5Checksum != "" || info.Size > 0:
-		// If item has MD5 sum or a length it is a file stored on drive
+	case info.Md5Checksum != "":
+		// If item has MD5 sum it is a file stored on drive
 		return f.newRegularObject(remote, info), nil
 	case f.opt.SkipGdocs:
 		fs.Debugf(remote, "Skipping google document type %q", info.MimeType)
@@ -3027,12 +2992,12 @@ func (f *Fs) makeShortcut(ctx context.Context, srcPath string, dstFs *Fs, dstPat
 }
 
 // List all team drives
-func (f *Fs) listTeamDrives(ctx context.Context) (drives []*drive.TeamDrive, err error) {
-	drives = []*drive.TeamDrive{}
-	listTeamDrives := f.svc.Teamdrives.List().PageSize(100)
+func (f *Fs) listTeamDrives(ctx context.Context) (drives []*drive.Drive, err error) {
+	drives = []*drive.Drive{}
+	listTeamDrives := f.svc.Drives.List().PageSize(100)
 	var defaultFs Fs // default Fs with default Options
 	for {
-		var teamDrives *drive.TeamDriveList
+		var teamDrives *drive.DriveList
 		err = f.pacer.Call(func() (bool, error) {
 			teamDrives, err = listTeamDrives.Context(ctx).Do()
 			return defaultFs.shouldRetry(ctx, err)
@@ -3040,7 +3005,7 @@ func (f *Fs) listTeamDrives(ctx context.Context) (drives []*drive.TeamDrive, err
 		if err != nil {
 			return drives, errors.Wrap(err, "listing Team Drives failed")
 		}
-		drives = append(drives, teamDrives.TeamDrives...)
+		drives = append(drives, teamDrives.Drives...)
 		if teamDrives.NextPageToken == "" {
 			break
 		}
@@ -3157,9 +3122,7 @@ var commandHelp = []fs.CommandHelp{{
 	Name:  "get",
 	Short: "Get command for fetching the drive config parameters",
 	Long: `This is a get command which will be used to fetch the various drive config parameters
-
 Usage Examples:
-
     rclone backend get drive: [-o service_account_file] [-o chunk_size]
     rclone rc backend/command command=get fs=drive: [-o service_account_file] [-o chunk_size]
 `,
@@ -3171,9 +3134,7 @@ Usage Examples:
 	Name:  "set",
 	Short: "Set command for updating the drive config parameters",
 	Long: `This is a set command which will be used to update the various drive config parameters
-
 Usage Examples:
-
     rclone backend set drive: [-o service_account_file=sa.json] [-o chunk_size=67108864]
     rclone rc backend/command command=set fs=drive: [-o service_account_file=sa.json] [-o chunk_size=67108864]
 `,
@@ -3185,17 +3146,13 @@ Usage Examples:
 	Name:  "shortcut",
 	Short: "Create shortcuts from files or directories",
 	Long: `This command creates shortcuts from files or directories.
-
 Usage:
-
     rclone backend shortcut drive: source_item destination_shortcut
     rclone backend shortcut drive: source_item -o target=drive2: destination_shortcut
-
 In the first example this creates a shortcut from the "source_item"
 which can be a file or a directory to the "destination_shortcut". The
 "source_item" and the "destination_shortcut" should be relative paths
 from "drive:"
-
 In the second example this creates a shortcut from the "source_item"
 relative to "drive:" to the "destination_shortcut" relative to
 "drive2:". This may fail with a permission error if the user
@@ -3209,13 +3166,9 @@ authenticated with "drive2:" can't read files from "drive:".
 	Short: "List the Shared Drives available to this account",
 	Long: `This command lists the Shared Drives (Team Drives) available to this
 account.
-
 Usage:
-
     rclone backend drives drive:
-
 This will return a JSON list of objects like this
-
     [
         {
             "id": "0ABCDEF-01234567890",
@@ -3228,26 +3181,19 @@ This will return a JSON list of objects like this
             "name": "Test Drive"
         }
     ]
-
 `,
 }, {
 	Name:  "untrash",
 	Short: "Untrash files and directories",
 	Long: `This command untrashes all the files and directories in the directory
 passed in recursively.
-
 Usage:
-
 This takes an optional directory to trash which make this easier to
 use via the API.
-
     rclone backend untrash drive:directory
     rclone backend -i untrash drive:directory subdir
-
 Use the -i flag to see what would be restored before restoring it.
-
 Result:
-
     {
         "Untrashed": 17,
         "Errors": 0
@@ -3257,23 +3203,17 @@ Result:
 	Name:  "copyid",
 	Short: "Copy files by ID",
 	Long: `This command copies files by ID
-
 Usage:
-
     rclone backend copyid drive: ID path
     rclone backend copyid drive: ID1 path1 ID2 path2
-
 It copies the drive file with ID given to the path (an rclone path which
 will be passed internally to rclone copyto). The ID and path pairs can be
 repeated.
-
 The path should end with a / to indicate copy the file as named to
 this directory. If it doesn't end with a / then the last path
 component will be used as the file name.
-
 If the destination is a drive backend then server-side copying will be
 attempted if possible.
-
 Use the -i flag to see what would be copied before copying.
 `,
 }}

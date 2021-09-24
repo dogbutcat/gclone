@@ -19,7 +19,7 @@ require (
 	github.com/pkg/sftp v1.13.1-0.20210424083437-2b80967078b8 // indirect
 	github.com/prometheus/client_golang v1.10.0 // indirect
 	github.com/prometheus/common v0.20.0 // indirect
-	github.com/rclone/rclone v1.55.1
+	github.com/rclone/rclone v1.56.1
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/spacemonkeygo/monkit/v3 v3.0.11 // indirect
 	github.com/spf13/cobra v1.1.3
