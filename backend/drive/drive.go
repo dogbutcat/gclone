@@ -603,7 +603,7 @@ type Fs struct {
 	ServiceAccountFiles map[string]int
 	waitChangeSvc       sync.Mutex
 	FileObj             *fs.Object
-	FileName            string
+	maybeIsFile         bool
 }
 
 type baseObject struct {
@@ -1114,6 +1114,27 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 	// Parse config into Options struct
 	opt := new(Options)
 	err := configstruct.Set(m, opt)
+	//-----------------------------------------------------------
+	maybeIsFile := false
+	// 添加  {id} 作为根目录功能
+	if path != "" && path[0:1] == "{" {
+		idIndex := strings.Index(path, "}")
+		if idIndex > 0 {
+			RootId := path[1:idIndex]
+			name += RootId
+			//opt.ServerSideAcrossConfigs = true
+			if len(RootId) == 33 {
+				maybeIsFile = true
+				opt.RootFolderID = RootId
+			} else {
+				opt.RootFolderID = RootId
+				opt.TeamDriveID = RootId
+			}
+			path = path[idIndex+1:]
+		}
+	}
+
+	//-----------------------------------------------------------
 	if err != nil {
 		return nil, err
 	}
@@ -1172,6 +1193,8 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 		}
 	}
 
+	f.maybeIsFile = maybeIsFile
+
 	return f, nil
 }
 
@@ -1223,6 +1246,29 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 	if err != nil {
 		return nil, err
 	}
+
+	//------------------------------------------------------
+	if f.maybeIsFile {
+		file, err := f.svc.Files.Get(f.opt.RootFolderID).Fields("name", "id", "size", "mimeType").SupportsAllDrives(true).Do()
+		if err == nil {
+			//fmt.Println("file.MimeType", file.MimeType)
+			if "application/vnd.google-apps.folder" != file.MimeType && file.MimeType != "" {
+				tempF := *f
+				newRoot := ""
+				tempF.dirCache = dircache.New(newRoot, f.rootFolderID, &tempF)
+				tempF.root = newRoot
+				f.dirCache = tempF.dirCache
+				f.root = tempF.root
+
+				extension, exportName, exportMimeType, isDocument := f.findExportFormat(ctx, file)
+				obj, _ := f.newObjectWithExportInfo(ctx, file.Name, file, extension, exportName, exportMimeType, isDocument)
+				f.root = "isFile:" + file.Name
+				f.FileObj = &obj
+				return f, fs.ErrorIsFile
+			}
+		}
+	}
+	//------------------------------------------------------
 
 	// Find the current root
 	err = f.dirCache.FindRoot(ctx, false)
@@ -1425,6 +1471,11 @@ func (f *Fs) newObjectWithExportInfo(
 // NewObject finds the Object at remote.  If it can't be found
 // it returns the error fs.ErrorObjectNotFound.
 func (f *Fs) NewObject(ctx context.Context, remote string) (fs.Object, error) {
+	//------------------------------------
+	if f.FileObj != nil {
+		return *f.FileObj, nil
+	}
+	//-------------------------------------
 	info, extension, exportName, exportMimeType, isDocument, err := f.getRemoteInfoWithExport(ctx, remote)
 	if err != nil {
 		return nil, err
