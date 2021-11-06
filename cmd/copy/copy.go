@@ -23,12 +23,12 @@ func init() {
 
 var commandDefinition = &cobra.Command{
 	Use:   "copy source:path dest:path",
-	Short: `Copy files from source to dest, skipping already copied.`,
+	Short: `Copy files from source to dest, skipping identical files.`,
 	// Note: "|" will be replaced by backticks below
 	Long: strings.ReplaceAll(`
-Copy the source to the destination.  Doesn't transfer
-unchanged files, testing by size and modification time or
-MD5SUM.  Doesn't delete files from the destination.
+Copy the source to the destination.  Does not transfer files that are
+identical on source and destination, testing by size and modification
+time or MD5SUM.  Doesn't delete files from the destination.
 Note that it is always the contents of the directory that is synced,
 not the directory so when source:path is a directory, it's the
 contents of source:path that are copied, not the directory name and
@@ -62,6 +62,7 @@ recently very efficiently like this:
 **Note**: Use the |--dry-run| or the |--interactive|/|-i| flag to test without copying anything.
 `, "|", "`"),
 	Run: func(command *cobra.Command, args []string) {
+
 		cmd.CheckArgs(2, 2, command, args)
 		fsrc, srcFileName, fdst := cmd.NewFsSrcFileDst(args)
 		if len(fsrc.Root()) > 7 && "isFile:" == fsrc.Root()[0:7] {

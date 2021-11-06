@@ -34,6 +34,7 @@ import (
 	"github.com/rclone/rclone/fs/config/configmap"
 	"github.com/rclone/rclone/fs/config/configstruct"
 	"github.com/rclone/rclone/fs/config/obscure"
+	"github.com/rclone/rclone/fs/filter"
 	"github.com/rclone/rclone/fs/fserrors"
 	"github.com/rclone/rclone/fs/fshttp"
 	"github.com/rclone/rclone/fs/fspath"
@@ -69,7 +70,7 @@ const (
 	defaultScope                = "drive"
 	// chunkSize is the size of the chunks created during a resumable upload and should be a power of two.
 	// 1<<18 is the minimum size supported by the Google uploader, and there is no maximum.
-	minChunkSize     = 256 * fs.Kibi
+	minChunkSize     = fs.SizeSuffix(googleapi.MinUploadChunkSize)
 	defaultChunkSize = 8 * fs.Mebi
 	partialFields    = "id,name,size,md5Checksum,trashed,explicitlyTrashed,modifiedTime,createdTime,mimeType,parents,webViewLink,shortcutDetails,exportLinks"
 	listRGrouping    = 50   // number of IDs to search at once when using ListR
@@ -271,22 +272,22 @@ func init() {
 			}},
 		}, {
 			Name: "root_folder_id",
-			Help: `ID of the root folder
+			Help: `ID of the root folder.
 Leave blank normally.
 Fill in to access "Computers" folders (see docs), or for rclone to use
 a non root folder as its starting point.
 `,
 		}, {
 			Name: "service_account_file",
-			Help: "Service Account Credentials JSON file path \nLeave blank normally.\nNeeded only if you want use SA instead of interactive login." + env.ShellExpandHelp,
+			Help: "Service Account Credentials JSON file path.\n\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login." + env.ShellExpandHelp,
 		}, {
 			Name:     "service_account_credentials",
-			Help:     "Service Account Credentials JSON blob\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login.",
+			Help:     "Service Account Credentials JSON blob.\n\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login.",
 			Hide:     fs.OptionHideConfigurator,
 			Advanced: true,
 		}, {
 			Name:     "team_drive",
-			Help:     "ID of the Shared Drive (Team Drive)",
+			Help:     "ID of the Shared Drive (Team Drive).",
 			Hide:     fs.OptionHideConfigurator,
 			Advanced: true,
 		}, {
@@ -297,12 +298,12 @@ a non root folder as its starting point.
 		}, {
 			Name:     "use_trash",
 			Default:  true,
-			Help:     "Send files to the trash instead of deleting permanently.\nDefaults to true, namely sending files to the trash.\nUse `--drive-use-trash=false` to delete files permanently instead.",
+			Help:     "Send files to the trash instead of deleting permanently.\n\nDefaults to true, namely sending files to the trash.\nUse `--drive-use-trash=false` to delete files permanently instead.",
 			Advanced: true,
 		}, {
 			Name:     "skip_gdocs",
 			Default:  false,
-			Help:     "Skip google documents in all listings.\nIf given, gdocs practically become invisible to rclone.",
+			Help:     "Skip google documents in all listings.\n\nIf given, gdocs practically become invisible to rclone.",
 			Advanced: true,
 		}, {
 			Name:    "skip_checksum_gphotos",
@@ -329,7 +330,7 @@ commands (copy, sync, etc.), and with all other commands too.`,
 		}, {
 			Name:     "trashed_only",
 			Default:  false,
-			Help:     "Only show files that are in the trash.\nThis will show trashed files in their original directory structure.",
+			Help:     "Only show files that are in the trash.\n\nThis will show trashed files in their original directory structure.",
 			Advanced: true,
 		}, {
 			Name:     "starred_only",
@@ -339,7 +340,7 @@ commands (copy, sync, etc.), and with all other commands too.`,
 		}, {
 			Name:     "formats",
 			Default:  "",
-			Help:     "Deprecated: see export_formats",
+			Help:     "Deprecated: See export_formats.",
 			Advanced: true,
 			Hide:     fs.OptionHideConfigurator,
 		}, {
@@ -355,12 +356,12 @@ commands (copy, sync, etc.), and with all other commands too.`,
 		}, {
 			Name:     "allow_import_name_change",
 			Default:  false,
-			Help:     "Allow the filetype to change when uploading Google docs (e.g. file.doc to file.docx). This will confuse sync and reupload every time.",
+			Help:     "Allow the filetype to change when uploading Google docs.\n\nE.g. file.doc to file.docx. This will confuse sync and reupload every time.",
 			Advanced: true,
 		}, {
 			Name:    "use_created_date",
 			Default: false,
-			Help: `Use file created date instead of modified date.,
+			Help: `Use file created date instead of modified date.
 Useful when downloading data and you want the creation date used in
 place of the last modified date.
 **WARNING**: This flag may have some unexpected consequences.
@@ -388,7 +389,7 @@ date is used.`,
 		}, {
 			Name:     "list_chunk",
 			Default:  1000,
-			Help:     "Size of listing chunk 100-1000. 0 to disable.",
+			Help:     "Size of listing chunk 100-1000, 0 to disable.",
 			Advanced: true,
 		}, {
 			Name:     "impersonate",
@@ -398,17 +399,18 @@ date is used.`,
 		}, {
 			Name:    "alternate_export",
 			Default: false,
-			Help:    "Deprecated: no longer needed",
+			Help:    "Deprecated: No longer needed.",
 			Hide:    fs.OptionHideBoth,
 		}, {
 			Name:     "upload_cutoff",
 			Default:  defaultChunkSize,
-			Help:     "Cutoff for switching to chunked upload",
+			Help:     "Cutoff for switching to chunked upload.",
 			Advanced: true,
 		}, {
 			Name:    "chunk_size",
 			Default: defaultChunkSize,
-			Help: `Upload chunk size. Must a power of 2 >= 256k.
+			Help: `Upload chunk size.
+Must a power of 2 >= 256k.
 Making this larger will improve performance, but note that each chunk
 is buffered in memory one per transfer.
 Reducing this will reduce memory usage but decrease performance.`,
@@ -470,7 +472,7 @@ configurations.`,
 		}, {
 			Name:    "disable_http2",
 			Default: true,
-			Help: `Disable drive using http2
+			Help: `Disable drive using http2.
 There is currently an unsolved issue with the google drive backend and
 HTTP/2.  HTTP/2 is therefore disabled by default for the drive backend
 but can be re-enabled here.  When the issue is solved this flag will
@@ -481,7 +483,7 @@ See: https://github.com/rclone/rclone/issues/3631
 		}, {
 			Name:    "stop_on_upload_limit",
 			Default: false,
-			Help: `Make upload limit errors be fatal
+			Help: `Make upload limit errors be fatal.
 At the time of writing it is only possible to upload 750 GiB of data to
 Google Drive a day (this is an undocumented limit). When this limit is
 reached Google Drive produces a slightly different error message. When
@@ -495,7 +497,7 @@ See: https://github.com/rclone/rclone/issues/3857
 		}, {
 			Name:    "stop_on_download_limit",
 			Default: false,
-			Help: `Make download limit errors be fatal
+			Help: `Make download limit errors be fatal.
 At the time of writing it is only possible to download 10 TiB of data from
 Google Drive a day (this is an undocumented limit). When this limit is
 reached Google Drive produces a slightly different error message. When
@@ -507,7 +509,7 @@ Google don't document so it may break in the future.
 			Advanced: true,
 		}, {
 			Name: "skip_shortcuts",
-			Help: `If set skip shortcut files
+			Help: `If set skip shortcut files.
 Normally rclone dereferences shortcut files making them appear as if
 they are the original file (see [the shortcuts section](#shortcuts)).
 If this flag is set then rclone will ignore shortcut files completely.
@@ -540,11 +542,9 @@ If this flag is set then rclone will ignore shortcut files completely.
 
 // Options defines the configuration for this backend
 type Options struct {
-	Scope              string `config:"scope"`
-	RootFolderID       string `config:"root_folder_id"`
-	ServiceAccountFile string `config:"service_account_file"`
-	// add service file path
-	ServiceAccountFilePath    string               `config:"service_account_file_path"`
+	Scope                     string               `config:"scope"`
+	RootFolderID              string               `config:"root_folder_id"`
+	ServiceAccountFile        string               `config:"service_account_file"`
 	ServiceAccountCredentials string               `config:"service_account_credentials"`
 	TeamDriveID               string               `config:"team_drive"`
 	AuthOwnerOnly             bool                 `config:"auth_owner_only"`
@@ -576,6 +576,8 @@ type Options struct {
 	StopOnDownloadLimit       bool                 `config:"stop_on_download_limit"`
 	SkipShortcuts             bool                 `config:"skip_shortcuts"`
 	Enc                       encoder.MultiEncoder `config:"encoding"`
+	//-----------------------------------------------------------
+	ServiceAccountFilePath string `config:"service_account_file_path"`
 }
 
 // Fs represents a remote drive server
@@ -590,6 +592,7 @@ type Fs struct {
 	client           *http.Client       // authorized client
 	rootFolderID     string             // the id of the root folder
 	dirCache         *dircache.DirCache // Map of directory path to directory id
+	lastQuery        string             // Last query string to check in unit tests
 	pacer            *fs.Pacer          // To pace the API calls
 	exportExtensions []string           // preferred extensions to download docs
 	importMimeTypes  []string           // MIME types to convert to docs
@@ -866,11 +869,31 @@ func (f *Fs) list(ctx context.Context, dirIDs []string, title string, directorie
 	if filesOnly {
 		query = append(query, fmt.Sprintf("mimeType!='%s'", driveFolderType))
 	}
-	list := f.svc.Files.List()
-	if len(query) > 0 {
-		list.Q(strings.Join(query, " and "))
-		// fmt.Printf("list Query = %q\n", query)
+
+	// Constrain query using filter if this remote is a sync/copy/walk source.
+	if fi, use := filter.GetConfig(ctx), filter.GetUseFilter(ctx); fi != nil && use {
+		queryByTime := func(op string, tm time.Time) {
+			if tm.IsZero() {
+				return
+			}
+			// https://developers.google.com/drive/api/v3/ref-search-terms#operators
+			// Query times use RFC 3339 format, default timezone is UTC
+			timeStr := tm.UTC().Format("2006-01-02T15:04:05")
+			term := fmt.Sprintf("(modifiedTime %s '%s' or mimeType = '%s')", op, timeStr, driveFolderType)
+			query = append(query, term)
+		}
+		queryByTime(">=", fi.ModTimeFrom)
+		queryByTime("<=", fi.ModTimeTo)
 	}
+
+	list := f.svc.Files.List()
+	queryString := strings.Join(query, " and ")
+	if queryString != "" {
+		list.Q(queryString)
+		// fs.Debugf(f, "list query: %q", queryString)
+	}
+	f.lastQuery = queryString // for unit tests
+
 	if f.opt.ListChunk > 0 {
 		list.PageSize(f.opt.ListChunk)
 	}
@@ -1435,7 +1458,7 @@ func (f *Fs) newObjectWithExportInfo(
 	}
 	switch {
 	case info.MimeType == driveFolderType:
-		return nil, fs.ErrorNotAFile
+		return nil, fs.ErrorIsDir
 	case info.MimeType == shortcutMimeType:
 		// We can only get here if f.opt.SkipShortcuts is set
 		// and not from a listing. This is unlikely.
@@ -2211,7 +2234,7 @@ func (f *Fs) PutUnchecked(ctx context.Context, in io.Reader, src fs.ObjectInfo, 
 		// Don't retry, return a retry error instead
 		err = f.pacer.CallNoRetry(func() (bool, error) {
 			info, err = f.svc.Files.Create(createInfo).
-				Media(in, googleapi.ContentType(srcMimeType)).
+				Media(in, googleapi.ContentType(srcMimeType), googleapi.ChunkSize(0)).
 				Fields(partialFields).
 				SupportsAllDrives(true).
 				KeepRevisionForever(f.opt.KeepRevisionForever).
@@ -2988,7 +3011,7 @@ func (f *Fs) makeShortcut(ctx context.Context, srcPath string, dstFs *Fs, dstPat
 		}
 		isDir = true
 	} else if srcObj, err := srcFs.NewObject(ctx, srcPath); err != nil {
-		if err != fs.ErrorNotAFile {
+		if err != fs.ErrorIsDir {
 			return nil, errors.Wrap(err, "can't find source")
 		}
 		// source was a directory
@@ -3008,7 +3031,7 @@ func (f *Fs) makeShortcut(ctx context.Context, srcPath string, dstFs *Fs, dstPat
 	if err != fs.ErrorObjectNotFound {
 		if err == nil {
 			err = errors.New("existing file")
-		} else if err == fs.ErrorNotAFile {
+		} else if err == fs.ErrorIsDir {
 			err = errors.New("existing directory")
 		}
 		return nil, errors.Wrap(err, "not overwriting shortcut target")
@@ -3218,7 +3241,7 @@ authenticated with "drive2:" can't read files from "drive:".
 	Long: `This command lists the Shared Drives (Team Drives) available to this
 account.
 Usage:
-    rclone backend drives drive:
+    rclone backend [-o config] drives drive:
 This will return a JSON list of objects like this
     [
         {
@@ -3232,6 +3255,18 @@ This will return a JSON list of objects like this
             "name": "Test Drive"
         }
     ]
+With the -o config parameter it will output the list in a format
+suitable for adding to a config file to make aliases for all the
+drives found.
+    [My Drive]
+    type = alias
+    remote = drive,team_drive=0ABCDEF-01234567890,root_folder_id=:
+    [Test Drive]
+    type = alias
+    remote = drive,team_drive=0ABCDEFabcdefghijkl,root_folder_id=:
+Adding this to the rclone config file will cause those team drives to
+be accessible with the aliases shown. This may require manual editing
+of the names.
 `,
 }, {
 	Name:  "untrash",
@@ -3331,7 +3366,21 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 		}
 		return f.makeShortcut(ctx, arg[0], dstFs, arg[1])
 	case "drives":
-		return f.listTeamDrives(ctx)
+		drives, err := f.listTeamDrives(ctx)
+		if err != nil {
+			return nil, err
+		}
+		if _, ok := opt["config"]; ok {
+			lines := []string{}
+			for _, drive := range drives {
+				lines = append(lines, "")
+				lines = append(lines, fmt.Sprintf("[%s]", drive.Name))
+				lines = append(lines, fmt.Sprintf("type = alias"))
+				lines = append(lines, fmt.Sprintf("remote = %s,team_drive=%s,root_folder_id=:", f.name, drive.Id))
+			}
+			return lines, nil
+		}
+		return drives, nil
 	case "untrash":
 		dir := ""
 		if len(arg) > 0 {
@@ -3679,7 +3728,7 @@ func (o *baseObject) update(ctx context.Context, updateInfo *drive.File, uploadM
 		// Don't retry, return a retry error instead
 		err = o.fs.pacer.CallNoRetry(func() (bool, error) {
 			info, err = o.fs.svc.Files.Update(actualID(o.id), updateInfo).
-				Media(in, googleapi.ContentType(uploadMimeType)).
+				Media(in, googleapi.ContentType(uploadMimeType), googleapi.ChunkSize(0)).
 				Fields(partialFields).
 				SupportsAllDrives(true).
 				KeepRevisionForever(o.fs.opt.KeepRevisionForever).
