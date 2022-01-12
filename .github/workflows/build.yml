@@ -204,7 +204,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   lint:
-    if: ${{ github.repository == 'rclone/rclone' || github.event.inputs.manual }}
+    if: ${{ github.repository == 'dogbutcat/gclone' || github.event.inputs.manual }}
     timeout-minutes: 30
     name: "lint"
     runs-on: ubuntu-latest
