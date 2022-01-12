@@ -68,5 +68,23 @@ gclone copy gc:{folde_id1} gc:{folde_id2}/media/  --drive-server-side-across-con
 ```
 gclone copy gc:{share_fiel_id} gc:{folde_id2}  --drive-server-side-across-configs
 ```
-  
 
+### 3.Support command line option `--drive-service-account-file-path`
+
+```
+gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-service-account-file-path=${SOMEWHERE_STORE_SAs}
+```
+  
+## CAVEATS
+
+Creating Service Accounts (SAs) allows you to bypass some of Google's quotas. Tools like autorclone and clonebot (gclone) automatically rotate SAs for continuous multi-terabyte file transfer.
+
+> Quotas SAs **CAN** bypass:
+
+* Google 'copy/upload' quota (750GB/account/day)
+* Google 'download' quota (10TB/account/day)
+
+> Quotas SAs **CANNOT** bypass:
+
+* Google Shared Drive quota (~20TB/drive/day)
+* Google file owner quota (~2TB/day)

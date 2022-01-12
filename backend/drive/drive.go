@@ -281,6 +281,10 @@ a non root folder as its starting point.
 			Name: "service_account_file",
 			Help: "Service Account Credentials JSON file path.\n\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login." + env.ShellExpandHelp,
 		}, {
+			Name:     "service_account_file_path",
+			Help:     "Service Account Credentials JSON files directory.\n\nLeave blank normally.\nNeeded only if you want use SA auto switch." + env.ShellExpandHelp,
+			Advanced: true,
+		}, {
 			Name:     "service_account_credentials",
 			Help:     "Service Account Credentials JSON blob.\n\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login.",
 			Hide:     fs.OptionHideConfigurator,
@@ -604,7 +608,7 @@ type Fs struct {
 	listRempties     map[string]struct{} // IDs of supposedly empty directories which triggered grouping disable
 	//------------------------------------------------------------
 	ServiceAccountFiles map[string]int
-	waitChangeSvc       sync.Mutex
+	waitChangeSvc       *sync.Mutex
 	FileObj             *fs.Object
 	maybeIsFile         bool
 }
@@ -711,6 +715,10 @@ func (f *Fs) changeSvc(ctx context.Context) {
 	 *  获取sa文件列表
 	 */
 	if opt.ServiceAccountFilePath != "" && len(f.ServiceAccountFiles) == 0 {
+		pathSeparator := string(os.PathSeparator)
+		if !strings.HasSuffix(opt.ServiceAccountFilePath, pathSeparator) {
+			opt.ServiceAccountFilePath += pathSeparator
+		}
 		f.ServiceAccountFiles = make(map[string]int)
 		dir_list, e := ioutil.ReadDir(opt.ServiceAccountFilePath)
 		if e != nil {
@@ -752,7 +760,18 @@ func (f *Fs) changeSvc(ctx context.Context) {
 	}
 	f.client = oAuthClient
 	f.svc, err = drive.New(f.client)
-	fmt.Println("gclone sa file:", opt.ServiceAccountFile)
+
+	if err != nil {
+		fmt.Println(err, "couldn't create Drive client")
+	}
+
+	if f.opt.V2DownloadMinSize >= 0 {
+		f.v2Svc, err = drive_v2.New(f.client)
+		if err != nil {
+			fmt.Println(err, "couldn't create Drive v2 client")
+		}
+	}
+	fmt.Println("loading gclone sa file:", opt.ServiceAccountFile)
 }
 
 // parseParse parses a drive 'url'
@@ -1182,15 +1201,17 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 
 	ci := fs.GetConfig(ctx)
 	f := &Fs{
-		name:         name,
-		root:         root,
-		opt:          *opt,
-		ci:           ci,
-		pacer:        fs.NewPacer(ctx, pacer.NewGoogleDrive(pacer.MinSleep(opt.PacerMinSleep), pacer.Burst(opt.PacerBurst))),
-		m:            m,
-		grouping:     listRGrouping,
-		listRmu:      new(sync.Mutex),
-		listRempties: make(map[string]struct{}),
+		name:                name,
+		root:                root,
+		opt:                 *opt,
+		ci:                  ci,
+		pacer:               fs.NewPacer(ctx, pacer.NewGoogleDrive(pacer.MinSleep(opt.PacerMinSleep), pacer.Burst(opt.PacerBurst))),
+		m:                   m,
+		grouping:            listRGrouping,
+		listRmu:             new(sync.Mutex),
+		listRempties:        make(map[string]struct{}),
+		waitChangeSvc:       new(sync.Mutex),
+		ServiceAccountFiles: make(map[string]int),
 	}
 	f.isTeamDrive = opt.TeamDriveID != ""
 	f.fileFields = f.getFileFields()
