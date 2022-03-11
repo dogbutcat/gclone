@@ -31,7 +31,7 @@ jobs:
             deploy: true
 
           - job_name: mac_amd64
-            os: macOS-latest
+            os: macos-11
             go: '1.17.x'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
@@ -40,10 +40,10 @@ jobs:
             deploy: true
 
           - job_name: mac_arm64
-            os: macOS-latest
+            os: macos-11
             go: '1.17.x'
             gotags: 'cmount'
-            build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -macos-sdk macosx11.1 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
+            build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
             deploy: true
 
           - job_name: windows_amd64
@@ -70,15 +70,9 @@ jobs:
           - job_name: other_os
             os: ubuntu-latest
             go: '1.17.x'
-            build_flags: '-exclude "^(windows/|darwin/|linux/)"'
-            compile_all: false
+            build_flags: '-exclude "^(windows/(386|amd64)|darwin/|linux/)"'
+            compile_all: true
             deploy: true
-
-          - job_name: go1.14
-            os: ubuntu-latest
-            go: '1.14.x'
-            quicktest: true
-            racequicktest: true
 
           - job_name: go1.15
             os: ubuntu-latest
@@ -116,6 +110,7 @@ jobs:
           echo 'BUILD_ARGS=${{ matrix.build_args }}' >> $GITHUB_ENV
           if [[ "${{ matrix.goarch }}" != "" ]]; then echo 'GOARCH=${{ matrix.goarch }}' >> $GITHUB_ENV ; fi
           if [[ "${{ matrix.cgo }}" != "" ]]; then echo 'CGO_ENABLED=${{ matrix.cgo }}' >> $GITHUB_ENV ; fi
+
       - name: Install Libraries on Linux
         shell: bash
         run: |
@@ -159,6 +154,7 @@ jobs:
           make vars
           printf "\n\nSystem environment:\n\n"
           env
+
       - name: Go module cache
         uses: actions/cache@v2
         with:
@@ -166,11 +162,13 @@ jobs:
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
           restore-keys: |
             ${{ runner.os }}-go-
+
       - name: Build gclone
         shell: bash
         run: |
           make
         if: false
+
       - name: Run tests
         shell: bash
         run: |
@@ -300,5 +298,6 @@ jobs:
           echo 'GOARCH=amd64' >> $GITHUB_ENV
           echo 'CGO_ENABLED=1' >> $GITHUB_ENV
           echo 'CGO_LDFLAGS=-fuse-ld=lld -s -w' >> $GITHUB_ENV
+
       - name: x64 build
         run: go build -v -tags android -trimpath -o build/gclone-android-21-x64 .

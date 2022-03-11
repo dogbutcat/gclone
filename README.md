@@ -71,9 +71,32 @@ gclone copy gc:{share_fiel_id} gc:{folde_id2}  --drive-server-side-across-config
 
 ### 3.Support command line option `--drive-service-account-file-path`
 
-```
+```sh
 gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-service-account-file-path=${SOMEWHERE_STORE_SAs}
 ```
+
+### 4.Support command line option `--drive-rolling-sa` and `--drive-rolling-count`
+
+```sh
+gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-rolling-sa --drive-rolling-count=1
+```
+
+> What is rolling sa?
+
+- This option main for backup large drive, intent for using all sa more balance, not to consume one sa in one time, as I found there's some wired scen when sa was consumed.
+
+> What is rolling count?
+
+- every action in rclone using go routine, actually it is for waitgroup count, same sa will use within action.
+By default is 1, not recommand set value over 4, in my test bigger file should with smaller count.
+
+### 5.Support command line option `--drive-random-pick-sa`
+
+```sh
+gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-random-pick-sa --drive-rolling-sa --drive-rolling-count=1
+```
+
+- take random sa file from `service account file path` config instead of configed one. Good companion with `rolling sa` config.
   
 ## CAVEATS
 
