@@ -17,7 +17,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['linux', 'mac_amd64', 'mac_arm64', 'windows_amd64', 'windows_386', 'other_os', 'go1.14', 'go1.15', 'go1.16']
+        job_name: ['linux', 'mac_amd64', 'mac_arm64', 'windows_amd64', 'windows_386', 'other_os', 'go1.15', 'go1.16']
 
         include:
           - job_name: linux
@@ -28,6 +28,7 @@ jobs:
             check: false
             quicktest: false
             racequicktest: false
+            librclonetest: false
             deploy: true
 
           - job_name: mac_amd64
@@ -101,6 +102,7 @@ jobs:
         with:
           stable: 'false'
           go-version: ${{ matrix.go }}
+          check-latest: true
 
       - name: Set environment variables
         shell: bash
@@ -125,7 +127,7 @@ jobs:
         run: |
           brew update
           brew install --cask macfuse
-        if: matrix.os == 'macOS-latest'
+        if: matrix.os == 'macos-11'
 
       - name: Install Libraries on Windows
         shell: powershell
@@ -201,21 +203,21 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  lint:
-    if: ${{ github.repository == 'dogbutcat/gclone' || github.event.inputs.manual }}
-    timeout-minutes: 30
-    name: "lint"
-    runs-on: ubuntu-latest
+  # lint:
+  #   if: ${{ github.repository == 'dogbutcat/gclone' || github.event.inputs.manual }}
+  #   timeout-minutes: 30
+  #   name: "lint"
+  #   runs-on: ubuntu-latest
 
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v2
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v2
 
-      - name: Code quality test
-        uses: golangci/golangci-lint-action@v2
-        with:
-          # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
-          version: latest
+  #     - name: Code quality test
+  #       uses: golangci/golangci-lint-action@v2
+  #       with:
+  #         # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
+  #         version: latest
 
   android:
     timeout-minutes: 30
