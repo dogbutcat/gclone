@@ -56,29 +56,29 @@ root_folder_id = root
 If the original rclone is across team disks or shared folders, multiple configuration drive letters are required for operation.
 gclone supports incoming id operation
 ```
-gclone copy gc:{folde_id1} gc:{folde_id2}  --drive-server-side-across-configs
+gclone copy gc:{folder_id1} gc:{folder_id2}  --drive-server-side-across-configs
 ```
-folde_id1 can be:Common directory, shared directory, team disk. 
+folder_id1 can be:Common directory, shared directory, team disk. 
   
 ```
-gclone copy gc:{folde_id1} gc:{folde_id2}/media/  --drive-server-side-across-configs
+gclone copy gc:{folder_id1} gc:{folder_id2}/media/  --drive-server-side-across-configs
 
 ```
 
 ```
-gclone copy gc:{share_fiel_id} gc:{folde_id2}  --drive-server-side-across-configs
+gclone copy gc:{share_field_id} gc:{folder_id2}  --drive-server-side-across-configs
 ```
 
 ### 3.Support command line option `--drive-service-account-file-path`
 
 ```sh
-gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-service-account-file-path=${SOMEWHERE_STORE_SAs}
+gclone copy gc:{share_field_id} gc:{folder_id2} --drive-service-account-file-path=${SOMEWHERE_STORE_SAs}
 ```
 
 ### 4.Support command line option `--drive-rolling-sa` and `--drive-rolling-count`
 
 ```sh
-gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-rolling-sa --drive-rolling-count=1
+gclone copy gc:{share_field_id} gc:{folder_id2} --drive-rolling-sa --drive-rolling-count=1
 ```
 
 > What is rolling sa?
@@ -93,7 +93,7 @@ By default is 1, not recommand set value over 4, in my test bigger file should w
 ### 5.Support command line option `--drive-random-pick-sa`
 
 ```sh
-gclone copy gc:{share_fiel_id} gc:{folde_id2} --drive-random-pick-sa --drive-rolling-sa --drive-rolling-count=1
+gclone copy gc:{share_field_id} gc:{folder_id2} --drive-random-pick-sa --drive-rolling-sa --drive-rolling-count=1
 ```
 
 - take random sa file from `service account file path` config instead of configed one. Good companion with `rolling sa` config.
