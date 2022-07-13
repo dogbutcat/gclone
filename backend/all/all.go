@@ -2,6 +2,7 @@ package all
 
 import (
 	// Active file systems
+	_ "github.com/dogbutcat/gclone/backend/drive"
 	_ "github.com/rclone/rclone/backend/alias"
 	_ "github.com/rclone/rclone/backend/amazonclouddrive"
 	_ "github.com/rclone/rclone/backend/azureblob"
@@ -9,9 +10,9 @@ import (
 	_ "github.com/rclone/rclone/backend/box"
 	_ "github.com/rclone/rclone/backend/cache"
 	_ "github.com/rclone/rclone/backend/chunker"
+	_ "github.com/rclone/rclone/backend/combine"
 	_ "github.com/rclone/rclone/backend/compress"
 	_ "github.com/rclone/rclone/backend/crypt"
-	_ "github.com/dogbutcat/gclone/backend/drive"
 	_ "github.com/rclone/rclone/backend/dropbox"
 	_ "github.com/rclone/rclone/backend/fichier"
 	_ "github.com/rclone/rclone/backend/filefabric"
@@ -20,8 +21,10 @@ import (
 	_ "github.com/rclone/rclone/backend/googlephotos"
 	_ "github.com/rclone/rclone/backend/hasher"
 	_ "github.com/rclone/rclone/backend/hdfs"
+	_ "github.com/rclone/rclone/backend/hidrive"
 	_ "github.com/rclone/rclone/backend/http"
 	_ "github.com/rclone/rclone/backend/hubic"
+	_ "github.com/rclone/rclone/backend/internetarchive"
 	_ "github.com/rclone/rclone/backend/jottacloud"
 	_ "github.com/rclone/rclone/backend/koofr"
 	_ "github.com/rclone/rclone/backend/local"
