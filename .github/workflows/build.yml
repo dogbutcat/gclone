@@ -161,11 +161,6 @@ jobs:
           make
         if: false
 
-      - name: Gclone version
-        shell: bash
-        run: |
-          gclone version
-
       - name: Run tests
         shell: bash
         run: |
