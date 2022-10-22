@@ -316,7 +316,7 @@ jobs:
       - name: Deploy built binaries
         shell: bash
         run: |
-          make upload_github
+          make ci_upload
         if: github.head_ref == '' && github.repository == 'dogbutcat/gclone'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -154,6 +154,10 @@ compile_all:
 	go run bin/cross-compile.go -compile-only $(BUILD_FLAGS) $(BUILDTAGS) $(BUILD_ARGS) $(TAG)
 
 ci_upload:
+	sudo chown -R $$USER build
+	find build -type l -delete
+	gzip -r9v -S .$(TAG).gz build
+	./bin/upload-github $(TAG)
 
 ci_beta:
 
