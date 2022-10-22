@@ -5,15 +5,17 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Launch Package",
+            "name": "Launch Package Copy",
             "type": "go",
             "request": "launch",
             "mode": "debug",
             "program": "${workspaceFolder}/gclone.go",
             "args": [
                 "copy",
-                "temp:{17qMYhaox34M7HWEfhg0H_2KOfUf723Yn}",
-                "temp:{1YiGd79mbB4QUbFW06Z_8Oh63sStu9ooH}", 
+                "pt:/",
+                "gcp:{1EsJqvUKds6H9MBe8D5nqVKD54TivgV9z}",
+                // "temp:{17qMYhaox34M7HWEfhg0H_2KOfUf723Yn}",
+                // "temp:{1YiGd79mbB4QUbFW06Z_8Oh63sStu9ooH}", 
                 "--drive-server-side-across-configs",
                 "--drive-service-account-file-path=${env:HOME}/fsdownload/accounts2",
                 "--drive-rolling-sa",

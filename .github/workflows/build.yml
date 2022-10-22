@@ -17,12 +17,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['linux', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.16', 'go1.17']
+        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.17', 'go1.18']
 
         include:
           - job_name: linux
             os: ubuntu-latest
-            go: '1.18.x'
+            go: '1.19.x'
             gotags: cmount
             build_flags: '-include "^linux/"'
             check: false
@@ -31,9 +31,16 @@ jobs:
             librclonetest: false
             deploy: true
 
+          - job_name: linux_386
+            os: ubuntu-latest
+            go: '1.19.x'
+            goarch: 386
+            gotags: cmount
+            quicktest: false
+
           - job_name: mac_amd64
             os: macos-11
-            go: '1.18.x'
+            go: '1.19.x'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
             quicktest: false
@@ -42,14 +49,14 @@ jobs:
 
           - job_name: mac_arm64
             os: macos-11
-            go: '1.18.x'
+            go: '1.19.x'
             gotags: 'cmount'
             build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
             deploy: true
 
           - job_name: windows
             os: windows-latest
-            go: '1.18.x'
+            go: '1.19.x'
             gotags: cmount
             cgo: '0'
             build_flags: '-include "^windows/"'
@@ -59,20 +66,20 @@ jobs:
 
           - job_name: other_os
             os: ubuntu-latest
-            go: '1.18.x'
+            go: '1.19.x'
             build_flags: '-exclude "^(windows/|darwin/|linux/)"'
             compile_all: true
             deploy: true
 
-          - job_name: go1.16
-            os: ubuntu-latest
-            go: '1.16.x'
-            quicktest: true
-            racequicktest: true
-
           - job_name: go1.17
             os: ubuntu-latest
             go: '1.17.x'
+            quicktest: true
+            racequicktest: true
+
+          - job_name: go1.18
+            os: ubuntu-latest
+            go: '1.18.x'
             quicktest: true
             racequicktest: true
 
@@ -82,12 +89,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       - name: Install Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v3
         with:
           stable: 'false'
           go-version: ${{ matrix.go }}
@@ -147,7 +154,7 @@ jobs:
           env
 
       - name: Go module cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -200,10 +207,10 @@ jobs:
 
   #   steps:
   #     - name: Checkout
-  #       uses: actions/checkout@v2
+  #       uses: actions/checkout@v3
 
   #     - name: Code quality test
-  #       uses: golangci/golangci-lint-action@v2
+  #       uses: golangci/golangci-lint-action@v3
   #       with:
   #         # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
   #         version: latest
@@ -216,18 +223,18 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
       # Upgrade together with NDK version
       - name: Set up Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v3
         with:
-          go-version: 1.18.x
+          go-version: 1.19.x
 
       - name: Go module cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/go/pkg/mod
           key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
@@ -242,6 +249,7 @@ jobs:
       - name: build native gclone
         run: |
           make
+
       - name: install gomobile
         run: |
           go install golang.org/x/mobile/cmd/gobind@latest
@@ -262,6 +270,7 @@ jobs:
           echo 'GOARM=7' >> $GITHUB_ENV
           echo 'CGO_ENABLED=1' >> $GITHUB_ENV
           echo 'CGO_LDFLAGS=-fuse-ld=lld -s -w' >> $GITHUB_ENV
+
       - name: arm-v7a build
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-armv7a .
 
@@ -274,6 +283,7 @@ jobs:
           echo 'GOARCH=arm64' >> $GITHUB_ENV
           echo 'CGO_ENABLED=1' >> $GITHUB_ENV
           echo 'CGO_LDFLAGS=-fuse-ld=lld -s -w' >> $GITHUB_ENV
+
       - name: arm64-v8a build
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-armv8a .
 
@@ -286,6 +296,7 @@ jobs:
           echo 'GOARCH=386' >> $GITHUB_ENV
           echo 'CGO_ENABLED=1' >> $GITHUB_ENV
           echo 'CGO_LDFLAGS=-fuse-ld=lld -s -w' >> $GITHUB_ENV
+
       - name: x86 build
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-x86 .
 
@@ -298,6 +309,7 @@ jobs:
           echo 'GOARCH=amd64' >> $GITHUB_ENV
           echo 'CGO_ENABLED=1' >> $GITHUB_ENV
           echo 'CGO_LDFLAGS=-fuse-ld=lld -s -w' >> $GITHUB_ENV
+
       - name: x64 build
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-x64 .
 
@@ -305,6 +317,6 @@ jobs:
         shell: bash
         run: |
           make upload_github
-        if: matrix.deploy && github.head_ref == '' && github.repository == 'dogbutcat/gclone'
+        if: github.head_ref == '' && github.repository == 'dogbutcat/gclone'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
