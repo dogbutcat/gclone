@@ -141,7 +141,7 @@ require (
 	github.com/golang/groupcache v0.0.0-20210331224755-41bb18bfe9da // indirect
 	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/pkg/xattr v0.4.7 // indirect
-	github.com/rclone/rclone v1.60.0
+	github.com/rclone/rclone v1.60.1
 	golang.org/x/mobile v0.0.0-20220722155234-aaac322e2105 // indirect
 	golang.org/x/term v0.0.0-20220722155259-a9ba230a4035 // indirect
 )
