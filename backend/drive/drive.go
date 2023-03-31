@@ -824,10 +824,12 @@ func (f *Fs) changeSvc(ctx context.Context) {
 	}
 
 	err, newSa := sfp.staleSa("")
-	if !err {
-		opt.ServiceAccountFile = newSa
-	} else {
-		// 如果读取文件夹后还是0 , 退出
+
+	/**
+	 *  replace action in `changeServiceAccountFile`
+	 */
+	if err {
+		fmt.Println("stale sa file: ", oldFile, " failed! ")
 		return
 	}
 
