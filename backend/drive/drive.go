@@ -781,7 +781,7 @@ func (f *Fs) shouldRetry(ctx context.Context, err error) (bool, error) {
 		}
 		if len(gerr.Errors) > 0 {
 			reason := gerr.Errors[0].Reason
-			if reason == "rateLimitExceeded" || reason == "userRateLimitExceeded" {
+			if reason == "rateLimitExceeded" || reason == "userRateLimitExceeded" || reason == "quotaExceeded" || reason == "storageQuotaExceeded"{
 				// if exists ServiceAccountFilePath
 				// not set `--drive-stop-on-upload-limit`
 				// call `changeSvc` to retry
