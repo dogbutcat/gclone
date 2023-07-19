@@ -30,21 +30,29 @@ ifdef RELEASE_TAG
 	TAG := $(RELEASE_TAG)
 endif
 GO_VERSION := $(shell go version)
-
+ifdef BETA_SUBDIR
+	BETA_SUBDIR := /$(BETA_SUBDIR)
+endif
+BETA_PATH := $(BRANCH_PATH)$(TAG)$(BETA_SUBDIR)
+BETA_URL := https://beta.rclone.org/$(BETA_PATH)/
+BETA_UPLOAD_ROOT := memstore:beta-rclone-org
+BETA_UPLOAD := $(BETA_UPLOAD_ROOT)/$(BETA_PATH)
+# Pass in GOTAGS=xyz on the make command line to set build tags
 ifdef GOTAGS
 BUILDTAGS=-tags "$(GOTAGS)"
 LINTTAGS=--build-tags "$(GOTAGS)"
 endif
 
-.PHONY: gclone vars version
+.PHONY: gclone test_all vars version
 
 gclone:
-	go build -v $(BUILDTAGS) $(BUILD_ARGS)
+	go build -v --ldflags "-s -X github.com/rclone/rclone/fs.Version=$(TAG)" $(BUILDTAGS) $(BUILD_ARGS)
 	mkdir -p `go env GOPATH`/bin/
 	cp -av gclone`go env GOEXE` `go env GOPATH`/bin/gclone`go env GOEXE`.new
 	mv -v `go env GOPATH`/bin/gclone`go env GOEXE`.new `go env GOPATH`/bin/gclone`go env GOEXE`
 
 test_all:
+	go install --ldflags "-s -X github.com/rclone/rclone/fs.Version=$(TAG)" $(BUILDTAGS) $(BUILD_ARGS) github.com/rclone/rclone/fstest/test_all
 
 vars:
 	@echo SHELL="'$(SHELL)'"
@@ -52,16 +60,17 @@ vars:
 	@echo TAG="'$(TAG)'"
 	@echo VERSION="'$(VERSION)'"
 	@echo GO_VERSION="'$(GO_VERSION)'"
-# 	@echo BETA_URL="'$(BETA_URL)'"
+	@echo BETA_URL="'$(BETA_URL)'"
 
 btest:
-
+	@echo "[$(TAG)]($(BETA_URL)) on branch [$(BRANCH)](https://github.com/rclone/rclone/tree/$(BRANCH)) (uploaded in 15-30 mins)" | xclip -r -sel clip
+	@echo "Copied markdown of beta release to clip board"
 
 version:
 	@echo '$(TAG)'
 
 # Full suite of integration tests
-test:	gclone test_all
+test:	rclone test_all
 	-test_all 2>&1 | tee test_all.log
 	@echo "Written logs in test_all.log"
 
@@ -72,8 +81,11 @@ quicktest:
 racequicktest:
 	RCLONE_CONFIG="/notfound" go test $(BUILDTAGS) -cpu=2 -race ./...
 
+compiletest:
+	RCLONE_CONFIG="/notfound" go test $(BUILDTAGS) -run XXX ./...
+
 # Do source code quality checks
-check:	gclone
+check:	rclone
 	@echo "-- START CODE QUALITY REPORT -------------------------------"
 	@golangci-lint run $(LINTTAGS) ./...
 	@echo "-- END CODE QUALITY REPORT ---------------------------------"
@@ -84,21 +96,25 @@ build_dep:
 
 # Get the release dependencies we only install on linux
 release_dep_linux:
-	go run bin/get-github-release.go -extract nfpm goreleaser/nfpm 'nfpm_.*_Linux_x86_64\.tar\.gz'
+	go install github.com/goreleaser/nfpm/v2/cmd/nfpm@latest
 
 # Get the release dependencies we only install on Windows
 release_dep_windows:
-	GO111MODULE=off GOOS="" GOARCH="" go get github.com/josephspurrier/goversioninfo/cmd/goversioninfo
+	GOOS="" GOARCH="" go install github.com/josephspurrier/goversioninfo/cmd/goversioninfo@latest
 
 # Update dependencies
 showupdates:
 	@echo "*** Direct dependencies that could be updated ***"
 	@GO111MODULE=on go list -u -f '{{if (and (not (or .Main .Indirect)) .Update)}}{{.Path}}: {{.Version}} -> {{.Update.Version}}{{end}}' -m all 2> /dev/null
 
+# Update direct dependencies only
+updatedirect:
+	GO111MODULE=on go get -d $$(go list -m -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' all)
+	GO111MODULE=on go mod tidy
+
 # Update direct and indirect dependencies and test dependencies
 update:
-	GO111MODULE=on go get -u -t ./...
-	-#GO111MODULE=on go get -d $(go list -m -f '{{if not (or .Main .Indirect)}}{{.Path}}{{end}}' all)
+	GO111MODULE=on go get -d -u -t ./...
 	GO111MODULE=on go mod tidy
 
 # Tidy the module dependencies
