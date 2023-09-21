@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"runtime"
 	"strings"
 	"time"
 
@@ -15,6 +16,7 @@ import (
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config/flags"
 	"github.com/rclone/rclone/fs/fshttp"
+	"github.com/rclone/rclone/lib/buildinfo"
 	"github.com/spf13/cobra"
 )
 
@@ -78,9 +80,32 @@ Or
 		if check {
 			CheckVersion(ctx)
 		} else {
-			cmd.ShowVersion()
+			ShowVersion()
 		}
 	},
+}
+
+func ShowVersion() {
+	osVersion, osKernel := buildinfo.GetOSVersion()
+	if osVersion == "" {
+		osVersion = "unknown"
+	}
+	if osKernel == "" {
+		osKernel = "unknown"
+	}
+
+	linking, tagString := buildinfo.GetLinkingAndTags()
+
+	arch := buildinfo.GetArch()
+
+	fmt.Printf("gclone %s\n", fs.Version)
+	fmt.Printf("- os/version: %s\n", osVersion)
+	fmt.Printf("- os/kernel: %s\n", osKernel)
+	fmt.Printf("- os/type: %s\n", runtime.GOOS)
+	fmt.Printf("- os/arch: %s\n", arch)
+	fmt.Printf("- go/version: %s\n", runtime.Version())
+	fmt.Printf("- go/linking: %s\n", linking)
+	fmt.Printf("- go/tags: %s\n", tagString)
 }
 
 // strip a leading v off the string

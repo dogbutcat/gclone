@@ -33,7 +33,7 @@ func TestVersionWorksWithoutAccessibleConfigFile(t *testing.T) {
 		assert.NoError(t, config.SetConfigPath(oldConfigPath))
 	}()
 
-	cmd.Root.SetArgs([]string{"version"})
+	cmd.Root.SetArgs([]string{"gversion"})
 	assert.NotPanics(t, func() {
 		assert.NoError(t, cmd.Root.Execute())
 	})
