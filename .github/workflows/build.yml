@@ -1,5 +1,5 @@
 ---
-# Github Actions build for gclone
+# Github Actions build for rclone
 # -*- compile-command: "yamllint -f parsable build.yml" -*-
 
 name: build
@@ -8,7 +8,7 @@ name: build
 on:
   push:
     tags:
-      - '*'
+      - '**'
   pull_request:
 
 jobs:
@@ -17,12 +17,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.18', 'go1.19']
+        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.19', 'go1.20']
 
         include:
           - job_name: linux
             os: ubuntu-latest
-            go: '1.20'
+            go: '1.21'
             gotags: cmount
             build_flags: '-include "^linux/"'
             check: false
@@ -33,14 +33,14 @@ jobs:
 
           - job_name: linux_386
             os: ubuntu-latest
-            go: '1.20'
+            go: '1.21'
             goarch: 386
             gotags: cmount
             quicktest: false
 
           - job_name: mac_amd64
             os: macos-11
-            go: '1.20'
+            go: '1.21'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
             quicktest: false
@@ -49,14 +49,14 @@ jobs:
 
           - job_name: mac_arm64
             os: macos-11
-            go: '1.20'
+            go: '1.21'
             gotags: 'cmount'
             build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
             deploy: true
 
           - job_name: windows
             os: windows-latest
-            go: '1.20'
+            go: '1.21'
             gotags: cmount
             cgo: '0'
             build_flags: '-include "^windows/"'
@@ -66,20 +66,20 @@ jobs:
 
           - job_name: other_os
             os: ubuntu-latest
-            go: '1.20'
+            go: '1.21'
             build_flags: '-exclude "^(windows/|darwin/|linux/)"'
             compile_all: true
             deploy: true
 
-          - job_name: go1.18
-            os: ubuntu-latest
-            go: '1.18'
-            quicktest: true
-            racequicktest: true
-
           - job_name: go1.19
             os: ubuntu-latest
             go: '1.19'
+            quicktest: true
+            racequicktest: true
+
+          - job_name: go1.20
+            os: ubuntu-latest
+            go: '1.20'
             quicktest: true
             racequicktest: true
 
@@ -89,12 +89,12 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       - name: Install Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
@@ -120,6 +120,11 @@ jobs:
       - name: Install Libraries on macOS
         shell: bash
         run: |
+          # https://github.com/Homebrew/brew/issues/15621#issuecomment-1619266788
+          # https://github.com/orgs/Homebrew/discussions/4612#discussioncomment-6319008
+          unset HOMEBREW_NO_INSTALL_FROM_API
+          brew untap --force homebrew/core
+          brew untap --force homebrew/cask
           brew update
           brew install --cask macfuse
         if: matrix.os == 'macos-11'
@@ -199,20 +204,33 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # lint:
-  #   if: ${{ github.repository == 'dogbutcat/gclone' || github.event.inputs.manual }}
+  #   if: ${{ github.event.inputs.manual == 'true' || (github.repository == 'dogbutcat/gclone' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)) }}
   #   timeout-minutes: 30
   #   name: "lint"
   #   runs-on: ubuntu-latest
 
-  #   steps:
-  #     - name: Checkout
-  #       uses: actions/checkout@v3
+    # steps:
+    #   - name: Checkout
+    #     uses: actions/checkout@v3
 
-  #     - name: Code quality test
-  #       uses: golangci/golangci-lint-action@v3
-  #       with:
-  #         # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
-  #         version: latest
+    #   - name: Code quality test
+    #     uses: golangci/golangci-lint-action@v3
+    #     with:
+    #       # Optional: version of golangci-lint to use in form of v1.2 or v1.2.3 or `latest` to use the latest version
+    #       version: latest
+
+    #   # Run govulncheck on the latest go version, the one we build binaries with
+    #   - name: Install Go
+    #     uses: actions/setup-go@v4
+    #     with:
+    #       go-version: '1.20'
+    #       check-latest: true
+
+    #   - name: Install govulncheck
+    #     run: go install golang.org/x/vuln/cmd/govulncheck@latest
+
+    #   - name: Scan for vulnerabilities
+    #     run: govulncheck ./...
 
   android:
     if: ${{ github.repository == 'dogbutcat/gclone' || github.event.inputs.manual }}
@@ -222,15 +240,15 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
       # Upgrade together with NDK version
       - name: Set up Go
-        uses: actions/setup-go@v3
+        uses: actions/setup-go@v4
         with:
-          go-version: '1.20'
+          go-version: '1.21'
 
       - name: Go module cache
         uses: actions/cache@v3
@@ -312,8 +330,7 @@ jobs:
       - name: x64 build
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-x64 .
 
-      - name: Deploy built binaries
-        shell: bash
+      - name: Upload artifacts
         run: |
           make ci_upload
         if: github.head_ref == '' && github.repository == 'dogbutcat/gclone'

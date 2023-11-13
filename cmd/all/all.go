@@ -4,6 +4,7 @@ package all
 import (
 	// Active commands
 	_ "github.com/dogbutcat/gclone/cmd/copy"
+	_ "github.com/dogbutcat/gclone/cmd/selfupdate"
 	_ "github.com/rclone/rclone/cmd"
 	_ "github.com/rclone/rclone/cmd/about"
 	_ "github.com/rclone/rclone/cmd/authorize"

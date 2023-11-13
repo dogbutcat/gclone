@@ -97,6 +97,14 @@ gclone copy gc:{share_field_id} gc:{folder_id2} --drive-random-pick-sa --drive-r
 ```
 
 - take random sa file from `service account file path` config instead of configed one. Good companion with `rolling sa` config.
+
+### 6.Support new command `gselfupdate` and `gversion`
+
+From `1.64.0-mod1.6.0` gclone add new command to update itself, parallel working with rclone's `selfupdate`
+
+```sh
+gclone gselfupdate [--check] [--output [of]] [--version [v]] [--package [zip|deb|rpm]]
+```
   
 ## CAVEATS
 
