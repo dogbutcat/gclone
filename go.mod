@@ -15,6 +15,7 @@ require (
 	github.com/a8m/tree v0.0.0-20230208161321-36ae24ddad15 // indirect
 	github.com/aalpar/deheap v0.0.0-20210914013432-0cc84d79dec3 // indirect
 	github.com/abbot/go-http-auth v0.4.0 // indirect
+	github.com/akavel/rsrc v0.10.2 // indirect
 	github.com/anacrolix/dms v1.6.0 // indirect
 	github.com/anacrolix/log v0.14.2 // indirect
 	github.com/atotto/clipboard v0.1.4 // indirect
@@ -36,6 +37,7 @@ require (
 	github.com/iguanesolutions/go-systemd/v5 v5.1.1 // indirect
 	github.com/jcmturner/gokrb5/v8 v8.4.4 // indirect
 	github.com/jlaffaye/ftp v0.2.0 // indirect
+	github.com/josephspurrier/goversioninfo v1.4.0
 	github.com/jzelinskie/whirlpool v0.0.0-20201016144138-0675e54bb004 // indirect
 	github.com/klauspost/compress v1.17.2 // indirect
 	github.com/koofr/go-httpclient v0.0.0-20230225102643-5d51a2e9dea6 // indirect
