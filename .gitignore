@@ -30,3 +30,4 @@ fuzz-build.zip
 *.orig
 *.rej
 .DS_Store
+resource_windows_*.syso
