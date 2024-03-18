@@ -2,11 +2,11 @@ package drive
 
 import (
 	"fmt"
-	"io/ioutil"
 	"math/rand"
 	"os"
 	"path"
 	"strings"
+	"time"
 )
 
 type Sa struct {
@@ -123,7 +123,11 @@ func (sa *SaInfo) randomPick() int {
 	if existLen == 0 {
 		return -1
 	}
-	r := rand.Intn(existLen)
+
+	rand_source := rand.NewSource(time.Now().UnixNano())
+	rand_instance := rand.New(rand_source)
+	r := rand_instance.Intn(existLen)
+
 	var nextIdx int
 	for _, v := range sa.saPool {
 		if r == 0 {
@@ -162,8 +166,17 @@ func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) {
 	if !strings.HasSuffix(dirPath, pathSeparator) {
 		dirPath += pathSeparator
 	}
-	dir_list, e := ioutil.ReadDir(dirPath)
-	if e != nil {
+
+	dir, err := os.Open(dirPath)
+	if err != nil {
+		fmt.Println("read ServiceAccount Folder error")
+	}
+
+	defer dir.Close()
+
+	dir_list, err := dir.ReadDir(-1)
+
+	if err != nil {
 		fmt.Println("read ServiceAccountFilePath Files error")
 	}
 	for _, v := range dir_list {
