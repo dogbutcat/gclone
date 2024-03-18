@@ -197,3 +197,7 @@ startstable:
 
 winzip:
 	zip -9 gclone-$(TAG).zip gclone.exe
+
+fixgclonedepmissing:
+	go mod download golang.org/x/mobile
+	go mod download github.com/dop251/scsu
