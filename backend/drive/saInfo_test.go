@@ -190,3 +190,16 @@ func TestRevertStaleSa(t *testing.T) {
 	assert.Equal(t, true, a.sas[step2Idx].isStale)
 
 }
+
+func TestRandomPick(t *testing.T) {
+	a := &SaInfo{}
+	b := []string{"a", "b", "c", "d", "e", "f", "g", "h", "i", "j"}
+	a.updateSas(b, "b")
+
+	fmt.Println(a.randomPick())
+	fmt.Println(a.randomPick())
+	fmt.Println(a.randomPick())
+	fmt.Println(a.randomPick())
+	fmt.Println(a.randomPick())
+	fmt.Println(a.randomPick())
+}

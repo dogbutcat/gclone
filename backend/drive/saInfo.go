@@ -124,14 +124,21 @@ func (sa *SaInfo) randomPick() int {
 		return -1
 	}
 
-	rand_source := rand.NewSource(time.Now().UnixNano())
+	seed := time.Now().UnixNano() + int64(rand.Intn(1000000))
+	rand_source := rand.NewSource(seed)
 	rand_instance := rand.New(rand_source)
 	r := rand_instance.Intn(existLen)
+
+	// fmt.Println(time.Now().UnixNano())
+	// fmt.Println("seed: ", seed)
+	// fmt.Println("random val:", r)
+	// fmt.Println(time.Now().UnixNano())
 
 	var nextIdx int
 	for _, v := range sa.saPool {
 		if r == 0 {
 			nextIdx = v
+			break
 		}
 		r--
 	}
