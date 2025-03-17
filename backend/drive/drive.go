@@ -80,9 +80,10 @@ const (
 // Globals
 var (
 	// Description of how to auth for this app
-	driveConfig = &oauth2.Config{
+	driveConfig = &oauthutil.Config{
 		Scopes:       []string{scopePrefix + "drive"},
-		Endpoint:     google.Endpoint,
+		AuthURL:      google.Endpoint.AuthURL,
+		TokenURL:     google.Endpoint.TokenURL,
 		ClientID:     rcloneClientID,
 		ClientSecret: obscure.MustReveal(rcloneEncryptedClientSecret),
 		RedirectURL:  oauthutil.RedirectURL,
@@ -120,6 +121,7 @@ var (
 		"text/html":                 ".html",
 		"text/plain":                ".txt",
 		"text/tab-separated-values": ".tsv",
+		"text/markdown":             ".md",
 	}
 	_mimeTypeToExtensionLinks = map[string]string{
 		"application/x-link-desktop": ".desktop",
@@ -201,7 +203,6 @@ func driveScopesContainsAppFolder(scopes []string) bool {
 		if scope == scopePrefix+"drive.appfolder" {
 			return true
 		}
-
 	}
 	return false
 }
@@ -1305,6 +1306,7 @@ func fixMimeType(mimeTypeIn string) string {
 	}
 	return mimeTypeOut
 }
+
 func fixMimeTypeMap(in map[string][]string) (out map[string][]string) {
 	out = make(map[string][]string, len(in))
 	for k, v := range in {
@@ -1315,9 +1317,11 @@ func fixMimeTypeMap(in map[string][]string) (out map[string][]string) {
 	}
 	return out
 }
+
 func isInternalMimeType(mimeType string) bool {
 	return strings.HasPrefix(mimeType, "application/vnd.google-apps.")
 }
+
 func isLinkMimeType(mimeType string) bool {
 	return strings.HasPrefix(mimeType, "application/x-link-")
 }
@@ -1817,7 +1821,8 @@ func (f *Fs) newObjectWithInfo(ctx context.Context, remote string, info *drive.F
 // When the drive.File cannot be represented as an fs.Object it will return (nil, nil).
 func (f *Fs) newObjectWithExportInfo(
 	ctx context.Context, remote string, info *drive.File,
-	extension, exportName, exportMimeType string, isDocument bool) (o fs.Object, err error) {
+	extension, exportName, exportMimeType string, isDocument bool,
+) (o fs.Object, err error) {
 	// Note that resolveShortcut will have been called already if
 	// we are being called from a listing. However the drive.Item
 	// will have been resolved so this will do nothing.
@@ -2013,6 +2018,7 @@ func linkTemplate(mt string) *template.Template {
 	})
 	return _linkTemplates[mt]
 }
+
 func (f *Fs) fetchFormats(ctx context.Context) {
 	fetchFormatsOnce.Do(func() {
 		var about *drive.About
@@ -2058,7 +2064,8 @@ func (f *Fs) importFormats(ctx context.Context) map[string][]string {
 // Look through the exportExtensions and find the first format that can be
 // converted.  If none found then return ("", "", false)
 func (f *Fs) findExportFormatByMimeType(ctx context.Context, itemMimeType string) (
-	extension, mimeType string, isDocument bool) {
+	extension, mimeType string, isDocument bool,
+) {
 	exportMimeTypes, isDocument := f.exportFormats(ctx)[itemMimeType]
 	if isDocument {
 		for _, _extension := range f.exportExtensions {
@@ -2386,7 +2393,7 @@ func (f *Fs) ListR(ctx context.Context, dir string, callback fs.ListRCallback) (
 		case in <- job:
 		default:
 			overflow = append(overflow, job)
-			wg.Add(-1)
+			wg.Done()
 		}
 	}
 
@@ -2866,7 +2873,7 @@ func (f *Fs) purgeCheck(ctx context.Context, dir string, check bool) error {
 	if shortcutID != "" {
 		return f.delete(ctx, shortcutID, f.opt.UseTrash)
 	}
-	var trashedFiles = false
+	trashedFiles := false
 	if check {
 		found, err := f.list(ctx, []string{directoryID}, "", false, false, f.opt.TrashedOnly, true, func(item *drive.File) bool {
 			if !item.Trashed {
@@ -3108,7 +3115,6 @@ func (f *Fs) CleanUp(ctx context.Context) error {
 		err := f.svc.Files.EmptyTrash().Context(ctx).Do()
 		return f.shouldRetry(ctx, err)
 	})
-
 	if err != nil {
 		return err
 	}
@@ -3379,6 +3385,7 @@ func (f *Fs) ChangeNotify(ctx context.Context, notifyFunc func(string, fs.EntryT
 		}
 	}()
 }
+
 func (f *Fs) changeNotifyStartPageToken(ctx context.Context) (pageToken string, err error) {
 	var startPageToken *drive.StartPageToken
 	err = f.pacer.Call(func() (bool, error) {
@@ -3757,7 +3764,8 @@ func (f *Fs) copyID(ctx context.Context, id, dest string) (err error) {
 	return nil
 }
 
-func (f *Fs) query(ctx context.Context, query string) (entries []*drive.File, err error) {
+// Run the drive query calling fn on each entry found
+func (f *Fs) queryFn(ctx context.Context, query string, fn func(*drive.File)) (err error) {
 	list := f.svc.Files.List()
 	if query != "" {
 		list.Q(query)
@@ -3776,10 +3784,7 @@ func (f *Fs) query(ctx context.Context, query string) (entries []*drive.File, er
 	if f.rootFolderID == "appDataFolder" {
 		list.Spaces("appDataFolder")
 	}
-
 	fields := fmt.Sprintf("files(%s),nextPageToken,incompleteSearch", f.getFileFields(ctx))
-
-	var results []*drive.File
 	for {
 		var files *drive.FileList
 		err = f.pacer.Call(func() (bool, error) {
@@ -3787,18 +3792,64 @@ func (f *Fs) query(ctx context.Context, query string) (entries []*drive.File, er
 			return f.shouldRetry(ctx, err)
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to execute query: %w", err)
+			return fmt.Errorf("failed to execute query: %w", err)
 		}
 		if files.IncompleteSearch {
 			fs.Errorf(f, "search result INCOMPLETE")
 		}
-		results = append(results, files.Files...)
+		for _, item := range files.Files {
+			fn(item)
+		}
 		if files.NextPageToken == "" {
 			break
 		}
 		list.PageToken(files.NextPageToken)
 	}
+	return nil
+}
+
+// Run the drive query returning the entries found
+func (f *Fs) query(ctx context.Context, query string) (entries []*drive.File, err error) {
+	var results []*drive.File
+	err = f.queryFn(ctx, query, func(item *drive.File) {
+		results = append(results, item)
+	})
+	if err != nil {
+		return nil, err
+	}
 	return results, nil
+}
+
+// Rescue, list or delete orphaned files
+func (f *Fs) rescue(ctx context.Context, dirID string, delete bool) (err error) {
+	return f.queryFn(ctx, "'me' in owners and trashed=false", func(item *drive.File) {
+		if len(item.Parents) != 0 {
+			return
+		}
+		// Have found an orphaned entry
+		if delete {
+			fs.Infof(item.Name, "Deleting orphan %q into trash", item.Id)
+			err = f.delete(ctx, item.Id, true)
+			if err != nil {
+				fs.Errorf(item.Name, "Failed to delete orphan %q: %v", item.Id, err)
+			}
+		} else if dirID == "" {
+			operations.SyncPrintf("%q, %q\n", item.Name, item.Id)
+		} else {
+			fs.Infof(item.Name, "Rescuing orphan %q", item.Id)
+			err = f.pacer.Call(func() (bool, error) {
+				_, err = f.svc.Files.Update(item.Id, nil).
+					AddParents(dirID).
+					Fields(f.getFileFields(ctx)).
+					SupportsAllDrives(true).
+					Context(ctx).Do()
+				return f.shouldRetry(ctx, err)
+			})
+			if err != nil {
+				fs.Errorf(item.Name, "Failed to rescue orphan %q: %v", item.Id, err)
+			}
+		}
+	})
 }
 
 var commandHelp = []fs.CommandHelp{{
@@ -3992,6 +4043,37 @@ The result is a JSON array of matches, for example:
 		"webViewLink": "https://drive.google.com/file/d/0AxBe_CDEF4zkGHI4d0FjYko2QkD/view?usp=drivesdk\u0026resourcekey=0-ABCDEFGHIXJQpIGqBJq3MC"
 	}
     ]`,
+}, {
+	Name:  "rescue",
+	Short: "Rescue or delete any orphaned files",
+	Long: `This command rescues or deletes any orphaned files or directories.
+
+Sometimes files can get orphaned in Google Drive. This means that they
+are no longer in any folder in Google Drive.
+
+This command finds those files and either rescues them to a directory
+you specify or deletes them.
+
+Usage:
+
+This can be used in 3 ways.
+
+First, list all orphaned files
+
+    rclone backend rescue drive:
+
+Second rescue all orphaned files to the directory indicated
+
+    rclone backend rescue drive: "relative/path/to/rescue/directory"
+
+e.g. To rescue all orphans to a directory called "Orphans" in the top level
+
+    rclone backend rescue drive: Orphans
+
+Third delete all orphaned files to the trash
+
+    rclone backend rescue drive: -o delete
+`,
 }}
 
 // Command the backend to run a named command
@@ -4112,14 +4194,29 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 	case "query":
 		if len(arg) == 1 {
 			query := arg[0]
-			var results, err = f.query(ctx, query)
+			results, err := f.query(ctx, query)
 			if err != nil {
 				return nil, fmt.Errorf("failed to execute query: %q, error: %w", query, err)
 			}
 			return results, nil
-		} else {
-			return nil, errors.New("need a query argument")
 		}
+		return nil, errors.New("need a query argument")
+	case "rescue":
+		dirID := ""
+		_, delete := opt["delete"]
+		if len(arg) == 0 {
+			// no arguments - list only
+		} else if !delete && len(arg) == 1 {
+			dir := arg[0]
+			dirID, err = f.dirCache.FindDir(ctx, dir, true)
+			if err != nil {
+				return nil, fmt.Errorf("failed to find or create rescue directory %q: %w", dir, err)
+			}
+			fs.Infof(f, "Rescuing orphans into %q", dir)
+		} else {
+			return nil, errors.New("syntax error: need 0 or 1 args or -o delete")
+		}
+		return nil, f.rescue(ctx, dirID, delete)
 	default:
 		return nil, fs.ErrorCommandNotFound
 	}
@@ -4163,8 +4260,9 @@ func (o *Object) Hash(ctx context.Context, t hash.Type) (string, error) {
 	}
 	return "", hash.ErrUnsupported
 }
+
 func (o *baseObject) Hash(ctx context.Context, t hash.Type) (string, error) {
-	if t != hash.MD5 {
+	if t != hash.MD5 && t != hash.SHA1 && t != hash.SHA256 {
 		return "", hash.ErrUnsupported
 	}
 	return "", nil
@@ -4177,7 +4275,8 @@ func (o *baseObject) Size() int64 {
 
 // getRemoteInfoWithExport returns a drive.File and the export settings for the remote
 func (f *Fs) getRemoteInfoWithExport(ctx context.Context, remote string) (
-	info *drive.File, extension, exportName, exportMimeType string, isDocument bool, err error) {
+	info *drive.File, extension, exportName, exportMimeType string, isDocument bool, err error,
+) {
 	leaf, directoryID, err := f.dirCache.FindPath(ctx, remote, false)
 	if err != nil {
 		if err == fs.ErrorDirNotFound {
@@ -4390,12 +4489,13 @@ func (o *Object) Open(ctx context.Context, options ...fs.OpenOption) (in io.Read
 	}
 	return o.baseObject.open(ctx, o.url, options...)
 }
+
 func (o *documentObject) Open(ctx context.Context, options ...fs.OpenOption) (in io.ReadCloser, err error) {
 	// Update the size with what we are reading as it can change from
 	// the HEAD in the listing to this GET. This stops rclone marking
 	// the transfer as corrupted.
 	var offset, end int64 = 0, -1
-	var newOptions = options[:0]
+	newOptions := options[:0]
 	for _, o := range options {
 		// Note that Range requests don't work on Google docs:
 		// https://developers.google.com/drive/v3/web/manage-downloads#partial_download
@@ -4422,9 +4522,10 @@ func (o *documentObject) Open(ctx context.Context, options ...fs.OpenOption) (in
 	}
 	return
 }
+
 func (o *linkObject) Open(ctx context.Context, options ...fs.OpenOption) (in io.ReadCloser, err error) {
 	var offset, limit int64 = 0, -1
-	var data = o.content
+	data := o.content
 	for _, option := range options {
 		switch x := option.(type) {
 		case *fs.SeekOption:
@@ -4449,7 +4550,8 @@ func (o *linkObject) Open(ctx context.Context, options ...fs.OpenOption) (in io.
 }
 
 func (o *baseObject) update(ctx context.Context, updateInfo *drive.File, uploadMimeType string, in io.Reader,
-	src fs.ObjectInfo) (info *drive.File, err error) {
+	src fs.ObjectInfo,
+) (info *drive.File, err error) {
 	// Make the API request to upload metadata and file data.
 	size := src.Size()
 	if size >= 0 && size < int64(o.fs.opt.UploadCutoff) {
@@ -4527,6 +4629,7 @@ func (o *Object) Update(ctx context.Context, in io.Reader, src fs.ObjectInfo, op
 
 	return nil
 }
+
 func (o *documentObject) Update(ctx context.Context, in io.Reader, src fs.ObjectInfo, options ...fs.OpenOption) error {
 	srcMimeType := fs.MimeType(ctx, src)
 	importMimeType := ""
@@ -4622,6 +4725,7 @@ func (o *baseObject) Metadata(ctx context.Context) (metadata fs.Metadata, err er
 func (o *documentObject) ext() string {
 	return o.baseObject.remote[len(o.baseObject.remote)-o.extLen:]
 }
+
 func (o *linkObject) ext() string {
 	return o.baseObject.remote[len(o.baseObject.remote)-o.extLen:]
 }
