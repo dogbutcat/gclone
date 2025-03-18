@@ -1,20 +1,16 @@
 //go:build !noselfupdate
-// +build !noselfupdate
 
 // Package selfupdate provides the selfupdate command.
 package selfupdate
 
 import (
 	"archive/zip"
-	// "bufio"
 	"bytes"
 	"context"
-
-	// "encoding/hex"
+	_ "embed"
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 	"os/exec"
@@ -33,6 +29,9 @@ import (
 
 	versionCmd "github.com/dogbutcat/gclone/cmd/version"
 )
+
+//go:embed selfupdate.md
+var selfUpdateHelp string
 
 // Options contains options for the self-update command
 type Options struct {
@@ -81,19 +80,19 @@ var cmdSelfUpdate = &cobra.Command{
 		}
 		if Opt.Package != "zip" {
 			if Opt.Package != "deb" && Opt.Package != "rpm" {
-				log.Fatalf("--package should be one of zip|deb|rpm")
+				fs.Fatalf(nil, "--package should be one of zip|deb|rpm")
 			}
 			if runtime.GOOS != "linux" {
-				log.Fatalf(".deb and .rpm packages are supported only on Linux")
+				fs.Fatalf(nil, ".deb and .rpm packages are supported only on Linux")
 			} else if os.Geteuid() != 0 && !Opt.Check {
-				log.Fatalf(".deb and .rpm must be installed by root")
+				fs.Fatalf(nil, ".deb and .rpm must be installed by root")
 			}
 			if Opt.Output != "" && !Opt.Check {
 				fmt.Println("Warning: --output is ignored with --package deb|rpm")
 			}
 		}
 		if err := InstallUpdate(context.Background(), &Opt); err != nil {
-			log.Fatalf("Error: %v", err)
+			fs.Fatalf(nil, "Error: %v", err)
 		}
 	},
 }
