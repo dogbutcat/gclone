@@ -780,7 +780,9 @@ two accounts.
 				Help:     "Random pick sa file from service account file path",
 				Default:  false,
 				Advanced: true,
-			}}...),
+			},
+			//-----------------------------------------------------------
+		}...),
 	})
 
 	// register duplicate MIME types first
@@ -847,6 +849,7 @@ type Options struct {
 	RollingSA              bool   `config:"rolling_sa"`
 	RollingCount           int    `config:"rolling_count"`
 	RandomPickSA           bool   `config:"random_pick_sa"`
+	//-----------------------------------------------------------
 }
 
 // Fs represents a remote drive server
@@ -873,11 +876,12 @@ type Fs struct {
 	dirResourceKeys  *sync.Map                    // map directory ID to resource key
 	permissionsMu    *sync.Mutex                  // protect the below
 	permissions      map[string]*drive.Permission // map permission IDs to Permissions
-	//------------------------------------------------------------
+	//-----------------------------------------------------------
 	ServiceAccountFiles *SaInfo
 	waitChangeSvc       *sync.Mutex
 	FileObj             *fs.Object
 	maybeIsFile         bool
+	//-----------------------------------------------------------
 }
 
 type baseObject struct {
@@ -917,8 +921,6 @@ type Object struct {
 type Directory struct {
 	baseObject
 }
-
-// ------------------------------------------------------------
 
 // Name of the remote (as passed into NewFs)
 func (f *Fs) Name() string {
@@ -960,6 +962,7 @@ func (f *Fs) shouldRetry(ctx context.Context, err error) (bool, error) {
 		if len(gerr.Errors) > 0 {
 			reason := gerr.Errors[0].Reason
 			if reason == "rateLimitExceeded" || reason == "userRateLimitExceeded" {
+				//-----------------------------------------------------------
 				// if exists ServiceAccountFilePath
 				// not set `--drive-stop-on-upload-limit`
 				// call `changeSvc` to retry
@@ -969,6 +972,7 @@ func (f *Fs) shouldRetry(ctx context.Context, err error) (bool, error) {
 					f.waitChangeSvc.Unlock()
 					return true, err
 				}
+				//-----------------------------------------------------------
 				if f.opt.StopOnUploadLimit && gerr.Errors[0].Message == "User rate limit exceeded." {
 					fs.Errorf(f, "Received upload limit error: %v", err)
 					return false, fserrors.FatalError(err)
@@ -988,6 +992,8 @@ func (f *Fs) shouldRetry(ctx context.Context, err error) (bool, error) {
 	}
 	return false, err
 }
+
+//-----------------------------------------------------------
 
 // patch 1: 替换 service file
 func (f *Fs) changeSvc(ctx context.Context) {
@@ -1040,6 +1046,8 @@ func (f *Fs) rollingSvc(ctx context.Context) {
 		fmt.Println("roll sa file: ", newSa, " failed: ", err)
 	}
 }
+
+//-----------------------------------------------------------
 
 // parseParse parses a drive 'url'
 func parseDrivePath(path string) (root string, err error) {
@@ -1501,6 +1509,7 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 	}
 
 	ci := fs.GetConfig(ctx)
+	//-----------------------------------------------------------
 	// if enable rolling sa
 	if opt.RollingSA {
 		if opt.RollingCount > 0 {
@@ -1509,6 +1518,7 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 			ci.Transfers = 1
 		}
 	}
+	//-----------------------------------------------------------
 	f := &Fs{
 		name:            name,
 		root:            root,
@@ -1522,9 +1532,10 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 		dirResourceKeys: new(sync.Map),
 		permissionsMu:   new(sync.Mutex),
 		permissions:     make(map[string]*drive.Permission),
-		//-----------------------------------------
+		//-----------------------------------------------------------
 		waitChangeSvc:       new(sync.Mutex),
 		ServiceAccountFiles: saInfo,
+		//-----------------------------------------------------------
 	}
 	f.isTeamDrive = opt.TeamDriveID != ""
 	f.features = (&fs.Features{
@@ -1558,7 +1569,9 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 		}
 	}
 
+	//-----------------------------------------------------------
 	f.maybeIsFile = maybeIsFile
+	//-----------------------------------------------------------
 
 	return f, nil
 }
@@ -1618,7 +1631,7 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 		return nil, err
 	}
 
-	//------------------------------------------------------
+	//-----------------------------------------------------------
 	if f.maybeIsFile {
 		file, err := f.svc.Files.Get(f.opt.RootFolderID).Fields("name", "id", "size", "mimeType").SupportsAllDrives(true).Do()
 		if err == nil {
@@ -1639,7 +1652,7 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 			}
 		}
 	}
-	//------------------------------------------------------
+	//-----------------------------------------------------------
 
 	// Find the current root
 	err = f.dirCache.FindRoot(ctx, false)
@@ -1870,11 +1883,11 @@ func (f *Fs) newObjectWithExportInfo(
 // NewObject finds the Object at remote.  If it can't be found
 // it returns the error fs.ErrorObjectNotFound.
 func (f *Fs) NewObject(ctx context.Context, remote string) (fs.Object, error) {
-	//------------------------------------
+	//-----------------------------------------------------------
 	if f.FileObj != nil {
 		return *f.FileObj, nil
 	}
-	//-------------------------------------
+	//-----------------------------------------------------------
 	if strings.HasSuffix(remote, "/") {
 		return nil, fs.ErrorIsDir
 	}
@@ -1930,7 +1943,7 @@ func (f *Fs) createDir(ctx context.Context, pathID, leaf string, metadata fs.Met
 	}
 	var updateMetadata updateMetadataFn
 	if len(metadata) > 0 {
-		updateMetadata, err = f.updateMetadata(ctx, createInfo, metadata, true)
+		updateMetadata, err = f.updateMetadata(ctx, createInfo, metadata, true, true)
 		if err != nil {
 			return nil, fmt.Errorf("create dir: failed to update metadata: %w", err)
 		}
@@ -1961,7 +1974,7 @@ func (f *Fs) updateDir(ctx context.Context, dirID string, metadata fs.Metadata) 
 	}
 	dirID = actualID(dirID)
 	updateInfo := &drive.File{}
-	updateMetadata, err := f.updateMetadata(ctx, updateInfo, metadata, true)
+	updateMetadata, err := f.updateMetadata(ctx, updateInfo, metadata, true, true)
 	if err != nil {
 		return nil, fmt.Errorf("update dir: failed to update metadata from source object: %w", err)
 	}
@@ -2620,11 +2633,13 @@ func (f *Fs) createFileInfo(ctx context.Context, remote string, modTime time.Tim
 //
 // The new object may have been created if an error is returned
 func (f *Fs) Put(ctx context.Context, in io.Reader, src fs.ObjectInfo, options ...fs.OpenOption) (fs.Object, error) {
+	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
 		f.rollingSvc(ctx)
 		f.waitChangeSvc.Unlock()
 	}
+	//-----------------------------------------------------------
 	existingObj, err := f.NewObject(ctx, src.Remote())
 	switch err {
 	case nil:
@@ -2848,6 +2863,7 @@ func (f *Fs) delete(ctx context.Context, id string, useTrash bool) error {
 				SupportsAllDrives(true).
 				Context(ctx).Do()
 		}
+		//-----------------------------------------------------------
 		defer func(f *Fs) {
 			if f.opt.RollingSA {
 				f.waitChangeSvc.Lock()
@@ -2855,6 +2871,7 @@ func (f *Fs) delete(ctx context.Context, id string, useTrash bool) error {
 				f.waitChangeSvc.Unlock()
 			}
 		}(f)
+		//-----------------------------------------------------------
 		return f.shouldRetry(ctx, err)
 	})
 }
@@ -3037,11 +3054,13 @@ func (f *Fs) Copy(ctx context.Context, src fs.Object, remote string) (fs.Object,
 	}
 	// Finalise metadata
 	err = updateMetadata(ctx, info)
+	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
 		f.rollingSvc(ctx)
 		f.waitChangeSvc.Unlock()
 	}
+	//-----------------------------------------------------------
 	if err != nil {
 		return nil, err
 	}
@@ -3240,11 +3259,13 @@ func (f *Fs) Move(ctx context.Context, src fs.Object, remote string) (fs.Object,
 
 	// Finalise metadata
 	err = updateMetadata(ctx, info)
+	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
 		f.rollingSvc(ctx)
 		f.waitChangeSvc.Unlock()
 	}
+	//-----------------------------------------------------------
 	if err != nil {
 		return nil, err
 	}
@@ -3328,11 +3349,13 @@ func (f *Fs) DirMove(ctx context.Context, src fs.Fs, srcRemote, dstRemote string
 		return err
 	}
 	srcFs.dirCache.FlushDir(srcRemote)
+	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
 		f.rollingSvc(ctx)
 		f.waitChangeSvc.Unlock()
 	}
+	//-----------------------------------------------------------
 	return nil
 }
 
@@ -3756,11 +3779,13 @@ func (f *Fs) copyID(ctx context.Context, id, dest string) (err error) {
 	if err != nil {
 		return fmt.Errorf("copy failed: %w", err)
 	}
+	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
 		f.rollingSvc(ctx)
 		f.waitChangeSvc.Unlock()
 	}
+	//-----------------------------------------------------------
 	return nil
 }
 
@@ -4221,8 +4246,6 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 		return nil, fs.ErrorCommandNotFound
 	}
 }
-
-// ------------------------------------------------------------
 
 // Fs returns the parent Fs
 func (o *baseObject) Fs() fs.Info {
