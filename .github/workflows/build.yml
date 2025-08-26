@@ -14,15 +14,18 @@ on:
 jobs:
   build:
     timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os']
+        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.24']
 
         include:
           - job_name: linux
             os: ubuntu-latest
-            go: '>=1.23.0-rc.1'
+            go: '>=1.25.0-rc.1'
             gotags: cmount
             build_flags: '-include "^linux/"'
             check: false
@@ -33,14 +36,14 @@ jobs:
 
           - job_name: linux_386
             os: ubuntu-latest
-            go: '>=1.23.0-rc.1'
+            go: '>=1.25.0-rc.1'
             goarch: 386
             gotags: cmount
             quicktest: false
 
           - job_name: mac_amd64
             os: macos-latest
-            go: '>=1.23.0-rc.1'
+            go: '>=1.25.0-rc.1'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
             quicktest: false
@@ -49,14 +52,14 @@ jobs:
 
           - job_name: mac_arm64
             os: macos-latest
-            go: '>=1.23.0-rc.1'
+            go: '>=1.25.0-rc.1'
             gotags: 'cmount'
             build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
             deploy: true
 
           - job_name: windows
             os: windows-latest
-            go: '>=1.23.0-rc.1'
+            go: '>=1.25.0-rc.1'
             gotags: cmount
             cgo: '0'
             build_flags: '-include "^windows/"'
@@ -66,10 +69,16 @@ jobs:
 
           - job_name: other_os
             os: ubuntu-latest
-            go: '>=1.23.0-rc.1'
+            go: '>=1.25.0-rc.1'
             build_flags: '-exclude "^(windows/|darwin/|linux/)"'
             compile_all: true
             deploy: true
+
+          - job_name: go1.24
+            os: ubuntu-latest
+            go: '1.24'
+            quicktest: false
+            racequicktest: false
 
     name: ${{ matrix.job_name }}
 
@@ -77,7 +86,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -88,7 +97,6 @@ jobs:
           check-latest: true
 
       - name: Set environment variables
-        shell: bash
         run: |
           echo 'GOTAGS=${{ matrix.gotags }}' >> $GITHUB_ENV
           echo 'BUILD_FLAGS=${{ matrix.build_flags }}' >> $GITHUB_ENV
@@ -97,7 +105,6 @@ jobs:
           if [[ "${{ matrix.cgo }}" != "" ]]; then echo 'CGO_ENABLED=${{ matrix.cgo }}' >> $GITHUB_ENV ; fi
 
       - name: Install Libraries on Linux
-        shell: bash
         run: |
           sudo modprobe fuse
           sudo chmod 666 /dev/fuse
@@ -107,7 +114,6 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
 
       - name: Install Libraries on macOS
-        shell: bash
         run: |
           # https://github.com/Homebrew/brew/issues/15621#issuecomment-1619266788
           # https://github.com/orgs/Homebrew/discussions/4612#discussioncomment-6319008
@@ -136,7 +142,6 @@ jobs:
         if: matrix.os == 'windows-latest'
 
       - name: Print Go version and environment
-        shell: bash
         run: |
           printf "Using go at: $(which go)\n"
           printf "Go version: $(go version)\n"
@@ -148,26 +153,22 @@ jobs:
           env
 
       - name: Run tests
-        shell: bash
         run: |
           make quicktest
         if: matrix.quicktest
 
       - name: Race test
-        shell: bash
         run: |
           make racequicktest
         if: matrix.racequicktest
 
       - name: Compile all architectures test
-        shell: bash
         run: |
           make
           make compile_all
         if: matrix.compile_all
 
       - name: Deploy built binaries
-        shell: bash
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then make release_dep_linux ; fi
           make upload_github
@@ -265,7 +266,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -273,10 +274,9 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '>=1.23.0-rc.1'
+          go-version: '>=1.25.0-rc.1'
 
       - name: Set global environment variables
-        shell: bash
         run: |
           echo "VERSION=$(make version)" >> $GITHUB_ENV
 
@@ -295,7 +295,6 @@ jobs:
         run: env PATH=$PATH:~/go/bin gomobile bind -androidapi ${RCLONE_NDK_VERSION} -v -target=android/arm -javapkg=org.rclone -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} github.com/rclone/rclone/librclone/gomobile
 
       - name: arm-v7a Set environment variables
-        shell: bash
         run: |
           echo "CC=$(echo $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/armv7a-linux-androideabi${RCLONE_NDK_VERSION}-clang)" >> $GITHUB_ENV
           echo "CC_FOR_TARGET=$CC" >> $GITHUB_ENV
@@ -309,7 +308,6 @@ jobs:
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-armv7a .
 
       - name: arm64-v8a Set environment variables
-        shell: bash
         run: |
           echo "CC=$(echo $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/aarch64-linux-android${RCLONE_NDK_VERSION}-clang)" >> $GITHUB_ENV
           echo "CC_FOR_TARGET=$CC" >> $GITHUB_ENV
@@ -322,7 +320,6 @@ jobs:
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-armv8a .
 
       - name: x86 Set environment variables
-        shell: bash
         run: |
           echo "CC=$(echo $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/i686-linux-android${RCLONE_NDK_VERSION}-clang)" >> $GITHUB_ENV
           echo "CC_FOR_TARGET=$CC" >> $GITHUB_ENV
@@ -335,7 +332,6 @@ jobs:
         run: go build -v -tags android -trimpath -ldflags '-s -X github.com/rclone/rclone/fs.Version='${VERSION} -o build/gclone-android-${RCLONE_NDK_VERSION}-x86 .
 
       - name: x64 Set environment variables
-        shell: bash
         run: |
           echo "CC=$(echo $ANDROID_NDK/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android${RCLONE_NDK_VERSION}-clang)" >> $GITHUB_ENV
           echo "CC_FOR_TARGET=$CC" >> $GITHUB_ENV
@@ -350,6 +346,5 @@ jobs:
       - name: Upload artifacts
         run: |
           make ci_upload
-        if: github.head_ref == '' && github.repository == 'dogbutcat/gclone'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

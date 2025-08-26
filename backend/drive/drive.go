@@ -18,6 +18,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -37,8 +38,8 @@ import (
 	"github.com/rclone/rclone/fs/fshttp"
 	"github.com/rclone/rclone/fs/fspath"
 	"github.com/rclone/rclone/fs/hash"
+	"github.com/rclone/rclone/fs/list"
 	"github.com/rclone/rclone/fs/operations"
-	"github.com/rclone/rclone/fs/walk"
 	"github.com/rclone/rclone/lib/dircache"
 	"github.com/rclone/rclone/lib/encoder"
 	"github.com/rclone/rclone/lib/env"
@@ -199,12 +200,7 @@ func driveScopes(scopesString string) (scopes []string) {
 
 // Returns true if one of the scopes was "drive.appfolder"
 func driveScopesContainsAppFolder(scopes []string) bool {
-	for _, scope := range scopes {
-		if scope == scopePrefix+"drive.appfolder" {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(scopes, scopePrefix+"drive.appfolder")
 }
 
 func driveOAuthOptions() []fs.Option {
@@ -922,6 +918,8 @@ type Directory struct {
 	baseObject
 }
 
+// ------------------------------------------------------------
+
 // Name of the remote (as passed into NewFs)
 func (f *Fs) Name() string {
 	return f.name
@@ -1061,12 +1059,7 @@ func parseDrivePath(path string) (root string, err error) {
 type listFn func(*drive.File) bool
 
 func containsString(slice []string, s string) bool {
-	for _, e := range slice {
-		if e == s {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(slice, s)
 }
 
 // getFile returns drive.File for the ID passed and fields passed in
@@ -1255,13 +1248,7 @@ OUTER:
 			// Check the case of items is correct since
 			// the `=` operator is case insensitive.
 			if title != "" && title != item.Name {
-				found := false
-				for _, stem := range stems {
-					if stem == item.Name {
-						found = true
-						break
-					}
-				}
+				found := slices.Contains(stems, item.Name)
 				if !found {
 					continue
 				}
@@ -1736,13 +1723,10 @@ func (f *Fs) getFileFields(ctx context.Context) (fields googleapi.Field) {
 func (f *Fs) newRegularObject(ctx context.Context, remote string, info *drive.File) (obj fs.Object, err error) {
 	// wipe checksum if SkipChecksumGphotos and file is type Photo or Video
 	if f.opt.SkipChecksumGphotos {
-		for _, space := range info.Spaces {
-			if space == "photos" {
-				info.Md5Checksum = ""
-				info.Sha1Checksum = ""
-				info.Sha256Checksum = ""
-				break
-			}
+		if slices.Contains(info.Spaces, "photos") {
+			info.Md5Checksum = ""
+			info.Sha1Checksum = ""
+			info.Sha256Checksum = ""
 		}
 	}
 	o := &Object{
@@ -2387,7 +2371,7 @@ func (f *Fs) ListR(ctx context.Context, dir string, callback fs.ListRCallback) (
 	wg := sync.WaitGroup{}
 	in := make(chan listREntry, listRInputBuffer)
 	out := make(chan error, f.ci.Checkers)
-	list := walk.NewListRHelper(callback)
+	list := list.NewHelper(callback)
 	overflow := []listREntry{}
 	listed := 0
 
@@ -2425,7 +2409,7 @@ func (f *Fs) ListR(ctx context.Context, dir string, callback fs.ListRCallback) (
 	wg.Add(1)
 	in <- listREntry{directoryID, dir}
 
-	for i := 0; i < f.ci.Checkers; i++ {
+	for range f.ci.Checkers {
 		go f.listRRunner(ctx, &wg, in, out, cb, sendJob)
 	}
 	go func() {
@@ -2434,11 +2418,8 @@ func (f *Fs) ListR(ctx context.Context, dir string, callback fs.ListRCallback) (
 		// if the input channel overflowed add the collected entries to the channel now
 		for len(overflow) > 0 {
 			mu.Lock()
-			l := len(overflow)
 			// only fill half of the channel to prevent entries being put into overflow again
-			if l > listRInputBuffer/2 {
-				l = listRInputBuffer / 2
-			}
+			l := min(len(overflow), listRInputBuffer/2)
 			wg.Add(l)
 			for _, d := range overflow[:l] {
 				in <- d
@@ -2458,7 +2439,7 @@ func (f *Fs) ListR(ctx context.Context, dir string, callback fs.ListRCallback) (
 		mu.Unlock()
 	}()
 	// wait until the all workers to finish
-	for i := 0; i < f.ci.Checkers; i++ {
+	for range f.ci.Checkers {
 		e := <-out
 		mu.Lock()
 		// if one worker returns an error early, close the input so all other workers exit
@@ -3747,14 +3728,14 @@ func (f *Fs) unTrashDir(ctx context.Context, dir string, recurse bool) (r unTras
 	return f.unTrash(ctx, dir, directoryID, true)
 }
 
-// copy file with id to dest
-func (f *Fs) copyID(ctx context.Context, id, dest string) (err error) {
+// copy or move file with id to dest
+func (f *Fs) copyOrMoveID(ctx context.Context, operation string, id, dest string) (err error) {
 	info, err := f.getFile(ctx, id, f.getFileFields(ctx))
 	if err != nil {
 		return fmt.Errorf("couldn't find id: %w", err)
 	}
 	if info.MimeType == driveFolderType {
-		return fmt.Errorf("can't copy directory use: rclone copy --drive-root-folder-id %s %s %s", id, fs.ConfigString(f), dest)
+		return fmt.Errorf("can't %s directory use: rclone %s --drive-root-folder-id %s %s %s", operation, operation, id, fs.ConfigString(f), dest)
 	}
 	info.Name = f.opt.Enc.ToStandardName(info.Name)
 	o, err := f.newObjectWithInfo(ctx, info.Name, info)
@@ -3775,10 +3756,17 @@ func (f *Fs) copyID(ctx context.Context, id, dest string) (err error) {
 	if err != nil {
 		return err
 	}
-	_, err = operations.Copy(ctx, dstFs, nil, destLeaf, o)
-	if err != nil {
-		return fmt.Errorf("copy failed: %w", err)
+
+	var opErr error
+	if operation == "moveid" {
+		_, opErr = operations.Move(ctx, dstFs, nil, destLeaf, o)
+	} else {
+		_, opErr = operations.Copy(ctx, dstFs, nil, destLeaf, o)
 	}
+	if opErr != nil {
+		return fmt.Errorf("%s failed: %w", operation, opErr)
+	}
+
 	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
@@ -4022,6 +4010,28 @@ attempted if possible.
 Use the --interactive/-i or --dry-run flag to see what would be copied before copying.
 `,
 }, {
+	Name:  "moveid",
+	Short: "Move files by ID",
+	Long: `This command moves files by ID
+
+Usage:
+
+    rclone backend moveid drive: ID path
+    rclone backend moveid drive: ID1 path1 ID2 path2
+
+It moves the drive file with ID given to the path (an rclone path which
+will be passed internally to rclone moveto).
+
+The path should end with a / to indicate move the file as named to
+this directory. If it doesn't end with a / then the last path
+component will be used as the file name.
+
+If the destination is a drive backend then server-side moving will be
+attempted if possible.
+
+Use the --interactive/-i or --dry-run flag to see what would be moved beforehand.
+`,
+}, {
 	Name:  "exportformats",
 	Short: "Dump the export formats for debug purposes",
 }, {
@@ -4110,7 +4120,7 @@ Third delete all orphaned files to the trash
 // The result should be capable of being JSON encoded
 // If it is a string or a []string it will be shown to the user
 // otherwise it will be JSON encoded and shown to the user like that
-func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[string]string) (out interface{}, err error) {
+func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[string]string) (out any, err error) {
 	switch name {
 	case "get":
 		out := make(map[string]string)
@@ -4199,16 +4209,16 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 			dir = arg[0]
 		}
 		return f.unTrashDir(ctx, dir, true)
-	case "copyid":
+	case "copyid", "moveid":
 		if len(arg)%2 != 0 {
 			return nil, errors.New("need an even number of arguments")
 		}
 		for len(arg) > 0 {
 			id, dest := arg[0], arg[1]
 			arg = arg[2:]
-			err = f.copyID(ctx, id, dest)
+			err = f.copyOrMoveID(ctx, name, id, dest)
 			if err != nil {
-				return nil, fmt.Errorf("failed copying %q to %q: %w", id, dest, err)
+				return nil, fmt.Errorf("failed %s %q to %q: %w", name, id, dest, err)
 			}
 		}
 		return nil, nil
@@ -4246,6 +4256,8 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 		return nil, fs.ErrorCommandNotFound
 	}
 }
+
+// ------------------------------------------------------------
 
 // Fs returns the parent Fs
 func (o *baseObject) Fs() fs.Info {
