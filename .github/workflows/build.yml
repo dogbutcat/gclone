@@ -11,21 +11,26 @@ on:
       - '**'
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   build:
     timeout-minutes: 60
+    permissions:
+      contents: write
     defaults:
       run:
         shell: bash
     strategy:
       fail-fast: false
       matrix:
-        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.24']
+        job_name: ['linux', 'linux_386', 'mac_amd64', 'mac_arm64', 'windows', 'other_os', 'go1.26']
 
         include:
           - job_name: linux
             os: ubuntu-latest
-            go: '>=1.25.0-rc.1'
+            go: '~1.26.6'
             gotags: cmount
             build_flags: '-include "^linux/"'
             check: false
@@ -36,14 +41,14 @@ jobs:
 
           - job_name: linux_386
             os: ubuntu-latest
-            go: '>=1.25.0-rc.1'
+            go: '~1.26.6'
             goarch: 386
             gotags: cmount
             quicktest: false
 
           - job_name: mac_amd64
             os: macos-latest
-            go: '>=1.25.0-rc.1'
+            go: '~1.26.6'
             gotags: 'cmount'
             build_flags: '-include "^darwin/amd64" -cgo'
             quicktest: false
@@ -52,14 +57,14 @@ jobs:
 
           - job_name: mac_arm64
             os: macos-latest
-            go: '>=1.25.0-rc.1'
+            go: '~1.26.6'
             gotags: 'cmount'
             build_flags: '-include "^darwin/arm64" -cgo -macos-arch arm64 -cgo-cflags=-I/usr/local/include -cgo-ldflags=-L/usr/local/lib'
             deploy: true
 
           - job_name: windows
             os: windows-latest
-            go: '>=1.25.0-rc.1'
+            go: '~1.26.6'
             gotags: cmount
             cgo: '0'
             build_flags: '-include "^windows/"'
@@ -69,14 +74,14 @@ jobs:
 
           - job_name: other_os
             os: ubuntu-latest
-            go: '>=1.25.0-rc.1'
+            go: '~1.26.6'
             build_flags: '-exclude "^(windows/|darwin/|linux/)"'
             compile_all: true
             deploy: true
 
-          - job_name: go1.24
+          - job_name: go1.26
             os: ubuntu-latest
-            go: '1.24'
+            go: '~1.26.6'
             quicktest: false
             racequicktest: false
 
@@ -85,16 +90,58 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
+      - name: Get runner parameters
+        id: get-runner-parameters
+        run: |
+          echo "year-week=$(date -u "+%Y%V")" >> $GITHUB_OUTPUT
+          echo "runner-os-version=$ImageOS" >> $GITHUB_OUTPUT
+
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       - name: Install Go
-        uses: actions/setup-go@v5
+        id: setup-go
+        uses: actions/setup-go@v7
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
+          # Caching is handled explicitly below. setup-go's built-in cache
+          # keys only on go.sum, so all matrix jobs collide on one key and
+          # only the first to finish saves - which loses the cross-compile
+          # build cache.
+          cache: false
+
+      - name: Get Go paths
+        id: go-paths
+        run: |
+          echo "build-cache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "mod-cache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+
+      # The module cache holds downloaded source and is identical across
+      # jobs (it depends only on go.sum, not on OS, arch or Go version), so
+      # it is shared via a single key to avoid storing the same ~600 MiB in
+      # every job's cache and overflowing the repo cache limit.
+      - name: Module cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.go-paths.outputs.mod-cache }}
+          key: go-mod-${{ steps.get-runner-parameters.outputs.year-week }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-mod-${{ steps.get-runner-parameters.outputs.year-week }}-
+            go-mod-
+
+      # The build cache holds compiled artifacts which are specific to the
+      # OS, arch and Go version, so it is kept per job.
+      - name: Build cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.go-paths.outputs.build-cache }}
+          key: go-build-${{ matrix.job_name }}-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.get-runner-parameters.outputs.year-week }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-build-${{ matrix.job_name }}-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.get-runner-parameters.outputs.year-week }}-
+            go-build-${{ matrix.job_name }}-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-
 
       - name: Set environment variables
         run: |
@@ -111,6 +158,11 @@ jobs:
           sudo chown root:$USER /etc/fuse.conf
           sudo apt-get update
           sudo apt-get install -y fuse3 libfuse-dev rpm pkg-config git-annex git-annex-remote-rclone nfs-common
+          # The podman static bundle in runner image ubuntu24/20260726.254 and
+          # later ships a non-setuid fusermount3 in /usr/local/bin which
+          # shadows the setuid one from the fuse3 package and breaks FUSE
+          # mounts with "Operation not permitted", so remove it.
+          sudo rm -f /usr/local/bin/fusermount /usr/local/bin/fusermount3
         if: matrix.os == 'ubuntu-latest'
 
       - name: Install Libraries on macOS
@@ -120,6 +172,7 @@ jobs:
           unset HOMEBREW_NO_INSTALL_FROM_API
           brew untap --force homebrew/core
           brew untap --force homebrew/cask
+          brew untap --force aws/tap
           brew update
           brew install --cask macfuse
           brew install git-annex git-annex-remote-rclone
@@ -172,12 +225,20 @@ jobs:
         run: |
           if [[ "${{ matrix.os }}" == "ubuntu-latest" ]]; then make release_dep_linux ; fi
           make upload_github
-        # make compile_all
-        # working-directory: '$(modulePath)'
-        # Deploy binaries if enabled in config && not a PR && not a fork
-        if: matrix.deploy && github.head_ref == '' && github.repository == 'dogbutcat/gclone'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # working-directory: '$(modulePath)'
+        # Deploy binaries if enabled in config && not a PR && not a fork
+        if: matrix.deploy && github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'dogbutcat/gclone'
+
+      - name: Trim module cache before saving
+        if: always()
+        run: |
+          # The downloaded module .zip archives are not needed to build from
+          # the already-extracted module cache, so drop them before the cache
+          # is saved - this roughly halves the module cache size.
+          modcache=$(go env GOMODCACHE | tr '\\' '/')
+          find "$modcache/cache/download" -name '*.zip' -type f -delete 2>/dev/null || true
 
   # lint:
   #   if: inputs.manual || (github.repository == 'dogbutcat/gclone' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name))
@@ -194,18 +255,18 @@ jobs:
   #         echo "runner-os-version=$ImageOS" >> $GITHUB_OUTPUT
 
   #     - name: Checkout
-  #       uses: actions/checkout@v4
+  #       uses: actions/checkout@v7
 
   #     - name: Install Go
   #       id: setup-go
-  #       uses: actions/setup-go@v5
+  #       uses: actions/setup-go@v7
   #       with:
-  #         go-version: '>=1.23.0-rc.1'
+  #         go-version: '~1.26.6'
   #         check-latest: true
   #         cache: false
 
   #     - name: Cache
-  #       uses: actions/cache@v4
+  #       uses: actions/cache@v6
   #       with:
   #         path: |
   #           ~/go/pkg/mod
@@ -215,13 +276,13 @@ jobs:
   #         restore-keys: golangci-lint-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.get-runner-parameters.outputs.year-week }}-
 
   #     - name: Code quality test (Linux)
-  #       uses: golangci/golangci-lint-action@v6
+  #       uses: golangci/golangci-lint-action@v9
   #       with:
   #         version: latest
   #         skip-cache: true
 
   #     - name: Code quality test (Windows)
-  #       uses: golangci/golangci-lint-action@v6
+  #       uses: golangci/golangci-lint-action@v9
   #       env:
   #         GOOS: "windows"
   #       with:
@@ -229,7 +290,7 @@ jobs:
   #         skip-cache: true
 
   #     - name: Code quality test (macOS)
-  #       uses: golangci/golangci-lint-action@v6
+  #       uses: golangci/golangci-lint-action@v9
   #       env:
   #         GOOS: "darwin"
   #       with:
@@ -237,7 +298,7 @@ jobs:
   #         skip-cache: true
 
   #     - name: Code quality test (FreeBSD)
-  #       uses: golangci/golangci-lint-action@v6
+  #       uses: golangci/golangci-lint-action@v9
   #       env:
   #         GOOS: "freebsd"
   #       with:
@@ -245,7 +306,7 @@ jobs:
   #         skip-cache: true
 
   #     - name: Code quality test (OpenBSD)
-  #       uses: golangci/golangci-lint-action@v6
+  #       uses: golangci/golangci-lint-action@v9
   #       env:
   #         GOOS: "openbsd"
   #       with:
@@ -259,22 +320,58 @@ jobs:
   #       run: govulncheck ./...
 
   android:
-    if: inputs.manual || (github.repository == 'dogbutcat/gclone' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name))
+    if: github.repository == 'dogbutcat/gclone' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.event.pull_request.base.repo.full_name)
     timeout-minutes: 30
+    permissions:
+      contents: write
     name: "android-all"
     runs-on: ubuntu-latest
 
     steps:
+      - name: Get runner parameters
+        id: get-runner-parameters
+        run: |
+          echo "year-week=$(date -u "+%Y%V")" >> $GITHUB_OUTPUT
+          echo "runner-os-version=$ImageOS" >> $GITHUB_OUTPUT
+
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
       # Upgrade together with NDK version
       - name: Set up Go
-        uses: actions/setup-go@v5
+        id: setup-go
+        uses: actions/setup-go@v7
         with:
-          go-version: '>=1.25.0-rc.1'
+          go-version: '~1.26.6'
+          # Caching is handled explicitly below to share the module cache
+          # with the other jobs - see the build job for the rationale.
+          cache: false
+
+      - name: Get Go paths
+        id: go-paths
+        run: |
+          echo "build-cache=$(go env GOCACHE)" >> $GITHUB_OUTPUT
+          echo "mod-cache=$(go env GOMODCACHE)" >> $GITHUB_OUTPUT
+
+      - name: Module cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.go-paths.outputs.mod-cache }}
+          key: go-mod-${{ steps.get-runner-parameters.outputs.year-week }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-mod-${{ steps.get-runner-parameters.outputs.year-week }}-
+            go-mod-
+
+      - name: Build cache
+        uses: actions/cache@v6
+        with:
+          path: ${{ steps.go-paths.outputs.build-cache }}
+          key: go-build-android-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.get-runner-parameters.outputs.year-week }}-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            go-build-android-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-${{ steps.get-runner-parameters.outputs.year-week }}-
+            go-build-android-${{ steps.get-runner-parameters.outputs.runner-os-version }}-go${{ steps.setup-go.outputs.go-version }}-
 
       - name: Set global environment variables
         run: |
@@ -348,3 +445,14 @@ jobs:
           make ci_upload
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Upload artifacts if not a PR && not a fork
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/') && github.repository == 'dogbutcat/gclone'
+
+      - name: Trim module cache before saving
+        if: always()
+        run: |
+          # The downloaded module .zip archives are not needed to build from
+          # the already-extracted module cache, so drop them before the cache
+          # is saved - this roughly halves the module cache size.
+          modcache=$(go env GOMODCACHE | tr '\\' '/')
+          find "$modcache/cache/download" -name '*.zip' -type f -delete 2>/dev/null || true

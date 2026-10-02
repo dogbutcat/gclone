@@ -1,10 +1,10 @@
 SHELL = bash
 # Branch we are working on
 BRANCH := $(or $(BUILD_SOURCEBRANCHNAME),$(lastword $(subst /, ,$(GITHUB_REF))),$(shell git rev-parse --abbrev-ref HEAD))
-# Tag of the current commit, if any.  If this is not "" then we are building a release
-RELEASE_TAG := $(shell git tag -l --points-at HEAD)
 # Version of last release (may not be on this branch)
 VERSION := $(shell cat VERSION)
+# Tag of the current commit, if any. If nonempty, use it as the release version.
+RELEASE_TAG := $(shell git tag -l --points-at HEAD)
 # Last tag on this branch
 LAST_TAG := $(shell git describe --tags --abbrev=0)
 # Next version
@@ -44,13 +44,15 @@ BUILDTAGS=-tags "$(GOTAGS)"
 LINTTAGS=--build-tags "$(GOTAGS)"
 endif
 
+LDFLAGS=--ldflags "-s -X github.com/rclone/rclone/fs.Version=$(TAG)"
+
 .PHONY: gclone test_all vars version
 
 gclone:
 ifeq ($(GO_OS),windows)
 	go run bin/resource_windows.go -version $(TAG) -syso resource_windows_`go env GOARCH`.syso
 endif
-	go build -v --ldflags "-s -X github.com/rclone/rclone/fs.Version=$(TAG)" $(BUILDTAGS) $(BUILD_ARGS)
+	go build -v $(LDFLAGS) $(BUILDTAGS) $(BUILD_ARGS)
 ifeq ($(GO_OS),windows)
 	rm resource_windows_`go env GOARCH`.syso
 endif
@@ -59,7 +61,7 @@ endif
 	mv -v `go env GOPATH`/bin/gclone`go env GOEXE`.new `go env GOPATH`/bin/gclone`go env GOEXE`
 
 test_all:
-	go install --ldflags "-s -X github.com/rclone/rclone/fs.Version=$(TAG)" $(BUILDTAGS) $(BUILD_ARGS) github.com/rclone/rclone/fstest/test_all
+	go install $(LDFLAGS) $(BUILDTAGS) $(BUILD_ARGS) github.com/rclone/rclone/fstest/test_all
 
 vars:
 	@echo SHELL="'$(SHELL)'"
@@ -82,14 +84,15 @@ test:	rclone test_all
 	@echo "Written logs in test_all.log"
 
 # Quick test
+# Allow the same 20 minute timeout as upstream for slower CI runners.
 quicktest:
-	RCLONE_CONFIG="/notfound" go test $(BUILDTAGS) ./...
+	RCLONE_CONFIG="/notfound" go test $(LDFLAGS) $(BUILDTAGS) -timeout 20m ./...
 
 racequicktest:
-	RCLONE_CONFIG="/notfound" go test $(BUILDTAGS) -cpu=2 -race ./...
+	RCLONE_CONFIG="/notfound" go test $(LDFLAGS) $(BUILDTAGS) -cpu=2 -race -timeout 20m ./...
 
 compiletest:
-	RCLONE_CONFIG="/notfound" go test $(BUILDTAGS) -run XXX ./...
+	RCLONE_CONFIG="/notfound" go test $(LDFLAGS) $(BUILDTAGS) -run XXX ./...
 
 # Do source code quality checks
 check:	rclone

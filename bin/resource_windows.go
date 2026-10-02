@@ -23,6 +23,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 	"path"
 	"runtime"
 	"strings"
@@ -41,10 +42,15 @@ func main() {
 	}
 
 	// Define flags
+	defaultIcon := path.Join(projectDir, "graphics/logo/ico/logo_symbol_color.ico")
+	if _, err := os.Stat(defaultIcon); os.IsNotExist(err) {
+		// The gclone source tree does not bundle rclone's default icon.
+		defaultIcon = ""
+	}
 	binary := flag.String("binary", "gclone.exe", `The name of the binary to generate resource for, e.g. "gclone.exe" or "libgclone.dll"`)
 	arch := flag.String("arch", runtime.GOARCH, `Architecture of resource file, or the target GOARCH, "386", "amd64", "arm", or "arm64"`)
 	version := flag.String("version", fs.Version, "Version number or tag name")
-	icon := flag.String("icon", path.Join(projectDir, "graphics/logo/ico/logo_symbol_color.ico"), "Path to icon file to embed in an .exe binary")
+	icon := flag.String("icon", defaultIcon, "Path to icon file to embed in an .exe binary")
 	dir := flag.String("dir", projectDir, "Path to output directory where to write the resulting system object file (.syso), with a default name according to -arch (resource_windows_<arch>.syso), only considered if not -syso is specified")
 	syso := flag.String("syso", "", "Path to output resource system object file (.syso) to be created/overwritten, ignores -dir")
 

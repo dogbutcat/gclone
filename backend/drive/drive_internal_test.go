@@ -24,6 +24,7 @@ import (
 	"github.com/rclone/rclone/fs/sync"
 	"github.com/rclone/rclone/fstest"
 	"github.com/rclone/rclone/fstest/fstests"
+	"github.com/rclone/rclone/lib/dircache"
 	"github.com/rclone/rclone/lib/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -142,6 +143,34 @@ func TestInternalFindExportFormat(t *testing.T) {
 		}
 		assert.Equal(t, test.wantMimeType, gotMimeType)
 		assert.Equal(t, true, gotIsDocument)
+	}
+}
+
+func TestShortcutLoop(t *testing.T) {
+	f := &Fs{}
+	f.dirCache = dircache.New("", "root", f)
+	// root is FolderX with ID "X"
+	f.dirCache.Put("", "X")
+	// a real subfolder
+	f.dirCache.Put("sub", "sub-id")
+	// a nested subfolder reached via a shortcut, composite ID
+	f.dirCache.Put("sub/nested", joinID("nested-id", "shortcut-id"))
+
+	for _, test := range []struct {
+		name     string
+		remote   string
+		targetID string
+		want     bool
+	}{
+		{"shortcut to the root itself", "loop", "X", true},
+		{"shortcut to the parent", "sub/loop", "sub-id", true},
+		{"shortcut to a grandparent", "sub/nested/loop", "X", true},
+		{"shortcut to a composite ancestor", "sub/nested/loop", "nested-id", true},
+		{"shortcut to an unrelated folder", "sub/loop", "other-id", false},
+		{"shortcut to a sibling", "sub/loop", "sub-id2", false},
+	} {
+		got := f.shortcutLoop(test.remote, test.targetID)
+		assert.Equal(t, test.want, got, test.name)
 	}
 }
 
@@ -643,6 +672,121 @@ func (f *Fs) InternalTestAgeQuery(t *testing.T) {
 	assert.Contains(t, subFs.lastQuery, timeQuery)
 }
 
+// TestIntegration/FsMkdir/FsPutFiles/Internal/SingleQuoteFolder
+func (f *Fs) InternalTestSingleQuoteFolder(t *testing.T) {
+	ctx := context.Background()
+
+	// Test various folder names containing single quotes
+	for _, name := range []string{
+		"'",
+		"''",
+		"'a'",
+		"it's a test",
+	} {
+		t.Run(name, func(t *testing.T) {
+			dir := "singleQuoteTest/" + name
+			err := f.Mkdir(ctx, dir)
+			require.NoError(t, err)
+			defer func() {
+				err := f.Rmdir(ctx, dir)
+				assert.NoError(t, err)
+			}()
+
+			entries, err := f.List(ctx, "singleQuoteTest")
+			require.NoError(t, err)
+
+			found := false
+			for _, entry := range entries {
+				if entry.Remote() == dir {
+					found = true
+					break
+				}
+			}
+			assert.True(t, found, "directory %q not found in listing", name)
+		})
+	}
+
+	err := f.Rmdir(ctx, "singleQuoteTest")
+	assert.NoError(t, err)
+}
+
+// TestIntegration/FsMkdir/FsPutFiles/Internal/MoveDuplicateParent
+//
+// Check that moving a file removes it from its real parent even when there
+// are two directories with the same name and the directory cache resolves the
+// path to the wrong duplicate. Otherwise the file ends up with two parents
+// which fails on shared drives with a teamDrivesParentLimit error (#9472).
+func (f *Fs) InternalTestMoveDuplicateParent(t *testing.T) {
+	ctx := context.Background()
+	if f.Features().Move == nil {
+		t.Skip("Move not supported")
+	}
+
+	rootID, err := f.dirCache.RootID(ctx, false)
+	require.NoError(t, err)
+
+	const dupName = "dup9472"
+	const dstName = "dst9472"
+	const fileName = "michael.txt"
+
+	// Create the first "dup9472" directory - this is the one the directory
+	// cache will resolve the path to.
+	dirA, err := f.createDir(ctx, rootID, dupName, nil)
+	require.NoError(t, err)
+	f.dirCache.Put(dupName, dirA.Id)
+
+	// Create a second directory with the SAME name and parent: a duplicate
+	// the directory cache does not know about.
+	dirB, err := f.createDir(ctx, rootID, dupName, nil)
+	require.NoError(t, err)
+
+	// Destination directory
+	dirDst, err := f.createDir(ctx, rootID, dstName, nil)
+	require.NoError(t, err)
+
+	defer func() {
+		_ = f.delete(ctx, dirA.Id, false)
+		_ = f.delete(ctx, dirB.Id, false)
+		_ = f.delete(ctx, dirDst.Id, false)
+		f.dirCache.Flush()
+	}()
+
+	// Upload a file directly into dirB (the duplicate the cache doesn't know).
+	createInfo := &drive.File{
+		Name:    fileName,
+		Parents: []string{dirB.Id},
+	}
+	var fileInfo *drive.File
+	err = f.pacer.Call(func() (bool, error) {
+		fileInfo, err = f.svc.Files.Create(createInfo).
+			Media(strings.NewReader("9472 duplicate parent test")).
+			Fields(f.getFileFields(ctx)).
+			SupportsAllDrives(true).
+			Context(ctx).Do()
+		return f.shouldRetry(ctx, err)
+	})
+	require.NoError(t, err)
+	require.Equal(t, []string{dirB.Id}, fileInfo.Parents)
+
+	// Sanity check: the directory cache resolves the path to dirA, not the
+	// dirB the file actually lives in.
+	gotDirID, err := f.dirCache.FindDir(ctx, dupName, false)
+	require.NoError(t, err)
+	require.Equal(t, dirA.Id, gotDirID, "directory cache should resolve to the wrong duplicate")
+
+	// Build the source object pointing at the file in dirB and move it.
+	srcObj, err := f.newObjectWithInfo(ctx, dupName+"/"+fileName, fileInfo)
+	require.NoError(t, err)
+
+	dstObj, err := f.Move(ctx, srcObj, dstName+"/"+fileName)
+	require.NoError(t, err)
+
+	// The moved file must have exactly one parent: the destination.
+	movedInfo, err := f.getFile(ctx, dstObj.(fs.IDer).ID(), "id,parents")
+	require.NoError(t, err)
+	assert.Equal(t, []string{dirDst.Id}, movedInfo.Parents)
+}
+
 func (f *Fs) InternalTest(t *testing.T) {
 	// These tests all depend on each other so run them as nested tests
 	t.Run("DocumentImport", func(t *testing.T) {
@@ -662,6 +806,8 @@ func (f *Fs) InternalTest(t *testing.T) {
 	t.Run("CopyOrMoveID", f.InternalTestCopyOrMoveID)
 	t.Run("Query", f.InternalTestQuery)
 	t.Run("AgeQuery", f.InternalTestAgeQuery)
+	t.Run("SingleQuoteFolder", f.InternalTestSingleQuoteFolder)
+	t.Run("MoveDuplicateParent", f.InternalTestMoveDuplicateParent)
 	t.Run("ShouldRetry", f.InternalTestShouldRetry)
 }
 
