@@ -4,9 +4,10 @@ import (
 	"fmt"
 	"math/rand"
 	"os"
-	"path"
-	"strings"
+	"path/filepath"
 	"time"
+
+	"github.com/rclone/rclone/lib/env"
 )
 
 type Sa struct {
@@ -21,9 +22,6 @@ type SaInfo struct {
 }
 
 func (sa *SaInfo) updateSas(data []string, activeSa string) {
-	if len(data) == 0 || activeSa == "" {
-		return
-	}
 	convSas := make(map[int]Sa)
 	convData := make(map[string]int)
 
@@ -33,6 +31,10 @@ func (sa *SaInfo) updateSas(data []string, activeSa string) {
 	}
 	sa.sas = convSas
 	sa.saPool = convData
+	sa.activeIdx = -1
+	if len(data) == 0 || activeSa == "" {
+		return
+	}
 
 	if result := sa.findIdxByStrInPool(activeSa); result != -1 {
 		sa.activeIdx = result
@@ -95,16 +97,21 @@ func (sa *SaInfo) activeSa(saPath string) {
 	}
 }
 
+// markStaleSa removes only the named account without changing the active account.
+func (sa *SaInfo) markStaleSa(target string) {
+	if oldIdx, ok := sa.saPool[target]; ok {
+		entry := sa.sas[oldIdx]
+		entry.isStale = true
+		sa.sas[oldIdx] = entry
+		delete(sa.saPool, target)
+	}
+}
+
 func (sa *SaInfo) staleSa(target string) (bool, string) {
 	if target == "" {
 		target = sa.sas[sa.activeIdx].saPath
 	}
-	oldIdx := sa.saPool[target]
-	if entry, ok := sa.sas[oldIdx]; ok {
-		entry.isStale = true
-		sa.sas[oldIdx] = entry
-	}
-	delete(sa.saPool, target)
+	sa.markStaleSa(target)
 	if sa.isPoolEmpty() {
 		sa.activeIdx = -1
 		return true, ""
@@ -167,31 +174,29 @@ func (sa *SaInfo) revertStaleSa(target string) {
 
 }
 
-func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) {
+func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) error {
 	var fileNames []string
-	pathSeparator := string(os.PathSeparator)
-	if !strings.HasSuffix(dirPath, pathSeparator) {
-		dirPath += pathSeparator
-	}
-
-	dir, err := os.Open(dirPath)
+	dirPath = filepath.Clean(env.ShellExpand(dirPath))
+	dir_list, err := os.ReadDir(dirPath)
 	if err != nil {
-		fmt.Println("read ServiceAccount Folder error")
-	}
-
-	defer dir.Close()
-
-	dir_list, err := dir.ReadDir(-1)
-
-	if err != nil {
-		fmt.Println("read ServiceAccountFilePath Files error")
+		return fmt.Errorf("read service account directory %q: %w", dirPath, err)
 	}
 	for _, v := range dir_list {
-		filePath := fmt.Sprintf("%s%s", dirPath, v.Name())
-		if path.Ext(filePath) == ".json" {
-			//fmt.Println(filePath)
+		if v.IsDir() || filepath.Ext(v.Name()) != ".json" {
+			continue
+		}
+		filePath := filepath.Join(dirPath, v.Name())
+		info, err := os.Stat(filePath)
+		if err != nil {
+			return fmt.Errorf("inspect service account file %q: %w", filePath, err)
+		}
+		if info.Mode().IsRegular() {
 			fileNames = append(fileNames, filePath)
 		}
 	}
-	sa.updateSas(fileNames, activeSa)
+	if len(fileNames) == 0 {
+		return fmt.Errorf("service account directory %q contains no JSON files", dirPath)
+	}
+	sa.updateSas(fileNames, env.ShellExpand(activeSa))
+	return nil
 }

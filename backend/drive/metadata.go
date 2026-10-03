@@ -116,11 +116,12 @@ func (f *Fs) getPermission(ctx context.Context, fileID, permissionID string, use
 	}
 	fs.Debugf(f, "Fetching permission %q", permissionID)
 	err = f.pacer.Call(func() (bool, error) {
-		perm, err = f.svc.Permissions.Get(fileID, permissionID).
+		service := f.currentService()
+		perm, err = service.svc.Permissions.Get(fileID, permissionID).
 			Fields(permissionsFields).
 			SupportsAllDrives(true).
 			Context(ctx).Do()
-		return f.shouldRetry(ctx, err)
+		return f.shouldRetryWithSA(ctx, err, &service)
 	})
 	if err != nil {
 		return nil, false, err
@@ -146,12 +147,13 @@ func (f *Fs) setPermissions(ctx context.Context, info *drive.File, permissions [
 		}
 		cleanPermissionForWrite(perm)
 		err := f.pacer.Call(func() (bool, error) {
-			_, err := f.svc.Permissions.Create(info.Id, perm).
+			service := f.currentService()
+			_, err := service.svc.Permissions.Create(info.Id, perm).
 				SupportsAllDrives(true).
 				SendNotificationEmail(false).
 				EnforceExpansiveAccess(f.opt.EnforceExpansiveAccess).
 				Context(ctx).Do()
-			return f.shouldRetry(ctx, err)
+			return f.shouldRetryWithSA(ctx, err, &service)
 		})
 		if err != nil {
 			fs.Errorf(f, "Failed to set permission %s for %q: %v", perm.Role, perm.EmailAddress, err)
@@ -222,14 +224,17 @@ var labelsFields = googleapi.Field(strings.Join([]string{
 // getLabels returns labels for the fileID passed in
 func (f *Fs) getLabels(ctx context.Context, fileID string) (labels []*drive.Label, err error) {
 	fs.Debugf(f, "Fetching labels for %q", fileID)
-	listLabels := f.svc.Files.ListLabels(fileID).
-		Fields(labelsFields).
-		Context(ctx)
+	service := f.currentService()
+	pageToken := ""
 	for {
 		var info *drive.LabelList
 		err = f.pacer.Call(func() (bool, error) {
+			listLabels := service.svc.Files.ListLabels(fileID).
+				Fields(labelsFields).
+				PageToken(pageToken).
+				Context(ctx)
 			info, err = listLabels.Do()
-			return f.shouldRetry(ctx, err)
+			return f.shouldRetryWithSA(ctx, err, &service)
 		})
 		if err != nil {
 			return nil, err
@@ -238,7 +243,7 @@ func (f *Fs) getLabels(ctx context.Context, fileID string) (labels []*drive.Labe
 		if info.NextPageToken == "" {
 			break
 		}
-		listLabels.PageToken(info.NextPageToken)
+		pageToken = info.NextPageToken
 	}
 	for _, label := range labels {
 		cleanLabel(label)
@@ -259,9 +264,10 @@ func (f *Fs) setLabels(ctx context.Context, info *drive.File, labels []*drive.La
 		})
 	}
 	err = f.pacer.Call(func() (bool, error) {
-		_, err = f.svc.Files.ModifyLabels(info.Id, &req).
+		service := f.currentService()
+		_, err = service.svc.Files.ModifyLabels(info.Id, &req).
 			Context(ctx).Do()
-		return f.shouldRetry(ctx, err)
+		return f.shouldRetryWithSA(ctx, err, &service)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to set labels: %w", err)
@@ -480,13 +486,14 @@ func (f *Fs) setOwner(ctx context.Context, info *drive.File, owner string) (err 
 		Type: "user",
 	}
 	err = f.pacer.Call(func() (bool, error) {
-		_, err = f.svc.Permissions.Create(info.Id, &perm).
+		service := f.currentService()
+		_, err = service.svc.Permissions.Create(info.Id, &perm).
 			SupportsAllDrives(true).
 			TransferOwnership(true).
 			// SendNotificationEmail(false). - required apparently!
 			EnforceExpansiveAccess(f.opt.EnforceExpansiveAccess).
 			Context(ctx).Do()
-		return f.shouldRetry(ctx, err)
+		return f.shouldRetryWithSA(ctx, err, &service)
 	})
 	if err != nil {
 		return fmt.Errorf("failed to set owner: %w", err)

@@ -47,6 +47,8 @@ type resumableUpload struct {
 	ContentLength int64
 	// Return value
 	ret *drive.File
+	// Keep successful session requests on the account that initiated the session.
+	service saService
 }
 
 // Upload the io.Reader in of size bytes with contentType and info
@@ -70,7 +72,9 @@ func (f *Fs) Upload(ctx context.Context, in io.Reader, size int64, contentType, 
 	urls += "?" + params.Encode()
 	var res *http.Response
 	var err error
+	var service saService
 	err = f.pacer.Call(func() (bool, error) {
+		service = f.currentService()
 		var body io.Reader
 		body, err = googleapi.WithoutDataWrapper.JSONReader(info)
 		if err != nil {
@@ -89,12 +93,12 @@ func (f *Fs) Upload(ctx context.Context, in io.Reader, size int64, contentType, 
 		if size >= 0 {
 			req.Header.Set("X-Upload-Content-Length", fmt.Sprintf("%v", size))
 		}
-		res, err = f.client.Do(req)
+		res, err = service.client.Do(req)
 		if err == nil {
 			defer googleapi.CloseBody(res)
 			err = googleapi.CheckResponse(res)
 		}
-		return f.shouldRetry(ctx, err)
+		return f.shouldRetryWithSA(ctx, err, &service)
 	})
 	if err != nil {
 		return nil, err
@@ -107,6 +111,7 @@ func (f *Fs) Upload(ctx context.Context, in io.Reader, size int64, contentType, 
 		Media:         in,
 		MediaType:     contentType,
 		ContentLength: size,
+		service:       service,
 	}
 	return rx.Upload(ctx)
 }
@@ -132,7 +137,7 @@ func (rx *resumableUpload) makeRequest(ctx context.Context, start int64, body io
 func (rx *resumableUpload) transferChunk(ctx context.Context, start int64, chunk io.ReadSeeker, chunkSize int64) (int, error) {
 	_, _ = chunk.Seek(0, io.SeekStart)
 	req := rx.makeRequest(ctx, start, chunk, chunkSize)
-	res, err := rx.f.client.Do(req)
+	res, err := rx.service.client.Do(req)
 	if err != nil {
 		return 599, err
 	}
@@ -199,10 +204,14 @@ func (rx *resumableUpload) Upload(ctx context.Context) (*drive.File, error) {
 		err = rx.f.pacer.Call(func() (bool, error) {
 			fs.Debugf(rx.remote, "Sending chunk %d length %d", start, reqSize)
 			StatusCode, err = rx.transferChunk(ctx, start, chunk, reqSize)
-			again, err := rx.f.shouldRetry(ctx, err)
+			again, err := rx.f.shouldRetryWithSA(ctx, err, &rx.service)
 			if StatusCode == statusResumeIncomplete || StatusCode == http.StatusCreated || StatusCode == http.StatusOK {
 				again = false
 				err = nil
+			}
+			if again && StatusCode >= 400 && StatusCode < 500 {
+				// A resumable 4xx requires a new session. Let the transfer reopen its input.
+				return false, fserrors.RetryError(err)
 			}
 			return again, err
 		})

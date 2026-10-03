@@ -87,8 +87,8 @@ gclone copy gc:{share_field_id} gc:{folder_id2} --drive-rolling-sa --drive-rolli
 
 > What is rolling count?
 
-- every action in rclone using go routine, actually it is for waitgroup count, same sa will use within action.
-By default is 1, not recommand set value over 4, in my test bigger file should with smaller count.
+- With `rolling_sa` enabled, this sets the parallel transfer count. It does not change recursive listing workers (`--checkers`) or reserve a distinct SA for each transfer.
+The default is 1; values above 4 are not recommended. Each request keeps its issuing SA for error attribution, and successful resumable upload sessions retain their initiating SA.
 
 ### 5.Support command line option `--drive-random-pick-sa`
 
@@ -96,7 +96,8 @@ By default is 1, not recommand set value over 4, in my test bigger file should w
 gclone copy gc:{share_field_id} gc:{folder_id2} --drive-random-pick-sa --drive-rolling-sa --drive-rolling-count=1
 ```
 
-- take random sa file from `service account file path` config instead of configed one. Good companion with `rolling sa` config.
+- Select an initial SA from the regular `.json` files in `service_account_file_path`. `service_account_file` is optional in this mode; an inherited initial file or inline `service_account_credentials` does not override the selected file. Good companion with `rolling_sa`.
+- The directory is required and must contain a candidate file. Directory and selected credential errors are reported directly. Normal authentication precedence is unchanged when random selection is disabled.
 
 ### 6.Support new command `gselfupdate` and `gversion`
 

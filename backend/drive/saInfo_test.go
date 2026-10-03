@@ -203,3 +203,17 @@ func TestRandomPick(t *testing.T) {
 	fmt.Println(a.randomPick())
 	fmt.Println(a.randomPick())
 }
+
+func TestStaleRepeatedAccount(t *testing.T) {
+	a := &SaInfo{}
+	a.updateSas([]string{"healthy", "failed"}, "failed")
+	failed, next := a.staleSa("failed")
+	assert.False(t, failed)
+	assert.Equal(t, "healthy", next)
+	failed, next = a.staleSa("failed")
+	assert.False(t, failed)
+	assert.Equal(t, "healthy", next)
+	assert.False(t, a.sas[0].isStale)
+	assert.True(t, a.sas[1].isStale)
+	assert.Equal(t, map[string]int{"healthy": 0}, a.saPool)
+}
