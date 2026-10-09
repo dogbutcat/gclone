@@ -1,8 +1,8 @@
 {
   "purpose": "Local VFS override provenance and removal inventory",
   "upstream_module": "github.com/rclone/rclone",
-  "upstream_version": "v1.75.1",
-  "upstream_commit": "687d264b689b8c49a67e2e52a8a5e0caa01c04ce",
+  "upstream_version": "v1.75.2",
+  "upstream_commit": "be8d6044eacb843b74d335db0c5fbe09222031fe",
   "lifecycle_patch_commit": "ef2553b129df9bad7393513a3e2297e29895e2cf",
   "copied_packages": {
     "backend/archive": "backend/archive",
@@ -44,24 +44,21 @@
     {
       "path": "backend/archive/archive.go",
       "upstream_path": "backend/archive/archive.go",
-      "upstream_sha256": "42aa67e3e846589d2bb94928c4cbb1f376bab4f1dc998403b1bcccf4b77c0284",
-      "patched_source_sha256": "42aa67e3e846589d2bb94928c4cbb1f376bab4f1dc998403b1bcccf4b77c0284",
+      "upstream_sha256": "6990701ff9548aad31b2a8128392443a4fea53c98d3279a386686404e04a020a",
       "kind": "upstream-copy",
-      "local_sha256": "f50f5eebbc5364f549bbf16884d14100f95ac4b739ba8ea7cf22aa2c7f47b317"
+      "local_sha256": "fddec9a825dbe48b8d97648e32d3bb710739abf3986d3a7d07b9e79552e7846e"
     },
     {
       "path": "backend/archive/archive_internal_test.go",
       "upstream_path": "backend/archive/archive_internal_test.go",
-      "upstream_sha256": "13057424d9999669126c56497266fd88f32854d1978045e85c13a6463133ef16",
-      "patched_source_sha256": "13057424d9999669126c56497266fd88f32854d1978045e85c13a6463133ef16",
+      "upstream_sha256": "dd29225b975348344f7ca48ba2c326cd989c19f1139e8a1f4a063e386de06c5b",
       "kind": "upstream-copy",
-      "local_sha256": "da2935debdd456b8aefba2f1ecc3dc827d05f88c0802b309bfd604f75abe607b"
+      "local_sha256": "bbcf23f8ae3dc17960921ae26bd27c7f24df3cb00e1b5e742ba8ed827e044de1"
     },
     {
       "path": "backend/archive/archive_test.go",
       "upstream_path": "backend/archive/archive_test.go",
       "upstream_sha256": "b419829af037cb06bee2920c0d5a3ebaa115203fb3f46a679ebe7734db1b6b2c",
-      "patched_source_sha256": "b419829af037cb06bee2920c0d5a3ebaa115203fb3f46a679ebe7734db1b6b2c",
       "kind": "upstream-copy",
       "local_sha256": "cc06995726793be04b8758a73cf1f64de8496c969fd8fae4841045a95a0da9c4"
     },
@@ -69,39 +66,27 @@
       "path": "backend/archive/archive_unsupported.go",
       "upstream_path": "backend/archive/archive_unsupported.go",
       "upstream_sha256": "f4f310093251ff4e2b0035956c226428cb3d9148016fd272ddbfc13b759f0dc5",
-      "patched_source_sha256": "f4f310093251ff4e2b0035956c226428cb3d9148016fd272ddbfc13b759f0dc5",
       "kind": "upstream-copy",
       "local_sha256": "eebcf4036f73f4835df555c4cf05a41805423ba24ecb5873fe8b03de45b29491"
-    },
-    {
-      "path": "backend/archive/squashfs_malformed_test.go",
-      "upstream_path": "backend/archive/squashfs_malformed_test.go",
-      "upstream_sha256": "ef6dfde87958f305cb9246392b302b05b2ef6b111652e5e284d2950dbc09c540",
-      "patched_source_sha256": "ef6dfde87958f305cb9246392b302b05b2ef6b111652e5e284d2950dbc09c540",
-      "kind": "upstream-copy",
-      "local_sha256": "07c783e6b92cae196db66137dfef5b51684444e101f7f225d04af6ff95d0b625"
     },
     {
       "path": "backend/archive/squashfs/cache.go",
       "upstream_path": "backend/archive/squashfs/cache.go",
       "upstream_sha256": "8eec904696ded1d76686a8d8420350a9dc67a3c73e7ee544b0c2f80ca7b76e4b",
-      "patched_source_sha256": "8eec904696ded1d76686a8d8420350a9dc67a3c73e7ee544b0c2f80ca7b76e4b",
       "kind": "upstream-copy",
       "local_sha256": "9ecf6dfa438866ff5bd45942b822095afb41ee78b0c8fa7ef63a202fe2a3ccc8"
     },
     {
       "path": "backend/archive/squashfs/squashfs.go",
       "upstream_path": "backend/archive/squashfs/squashfs.go",
-      "upstream_sha256": "21e289649197fc57a7c2e2dd88a288386dfbed5034560296ac23cea849360908",
-      "patched_source_sha256": "21e289649197fc57a7c2e2dd88a288386dfbed5034560296ac23cea849360908",
+      "upstream_sha256": "3bfa901036bd84e711c877f912efb1661f7b0c1de2ff250a769573617fd12f32",
       "kind": "upstream-copy",
-      "local_sha256": "5b0f108d2f9e06ff504ca58483914d6160ac0472fb11f80b0e732e92e021d92b"
+      "local_sha256": "7d85be5bc1bb064ce38cd012c7b6bc8ad7faf50027d31a22a5f05e144d0edefc"
     },
     {
       "path": "backend/archive/squashfs/squashfs_internal_test.go",
       "upstream_path": "backend/archive/squashfs/squashfs_internal_test.go",
       "upstream_sha256": "bac4eb0fb579be20e30f0d6132c42bc1b2c54f825ec17fceb4cd18c8873fe3d6",
-      "patched_source_sha256": "bac4eb0fb579be20e30f0d6132c42bc1b2c54f825ec17fceb4cd18c8873fe3d6",
       "kind": "upstream-copy",
       "local_sha256": "bc4e521f34653d1fc1f04c202dcd33333bdd820a9fa131e7887e923a85126b88"
     },
@@ -109,7 +94,6 @@
       "path": "backend/archive/squashfs/squashfs_test.go",
       "upstream_path": "backend/archive/squashfs/squashfs_test.go",
       "upstream_sha256": "3cf825e9bca7a562e7afdb15206ba555304181212088baa1c1038045858f6775",
-      "patched_source_sha256": "3cf825e9bca7a562e7afdb15206ba555304181212088baa1c1038045858f6775",
       "kind": "upstream-copy",
       "local_sha256": "1eeac93c8f677c2bbd0dfcb6cddffa3d0b48268169152f1c6f53a05a91291f94"
     },
@@ -117,7 +101,6 @@
       "path": "backend/archive/squashfs/testdata/1.sqfs",
       "upstream_path": "backend/archive/squashfs/testdata/1.sqfs",
       "upstream_sha256": "f97363cabf203d314531f178a90a9a9fe0c51244132e716c4c826890117f7deb",
-      "patched_source_sha256": "f97363cabf203d314531f178a90a9a9fe0c51244132e716c4c826890117f7deb",
       "kind": "upstream-copy",
       "local_sha256": "f97363cabf203d314531f178a90a9a9fe0c51244132e716c4c826890117f7deb"
     },
@@ -125,7 +108,6 @@
       "path": "backend/archive/squashfs/testdata/2.sqfs",
       "upstream_path": "backend/archive/squashfs/testdata/2.sqfs",
       "upstream_sha256": "31f24aa480ebd05ce5d6cd2091c11113325e6ab51970e31ae3428e93db36f5c5",
-      "patched_source_sha256": "31f24aa480ebd05ce5d6cd2091c11113325e6ab51970e31ae3428e93db36f5c5",
       "kind": "upstream-copy",
       "local_sha256": "31f24aa480ebd05ce5d6cd2091c11113325e6ab51970e31ae3428e93db36f5c5"
     },
@@ -133,47 +115,48 @@
       "path": "backend/archive/squashfs/testdata/backslash.sqfs",
       "upstream_path": "backend/archive/squashfs/testdata/backslash.sqfs",
       "upstream_sha256": "721e087541b20d9ae16165a997886f559c7a336733394538289cfac1abf29e4e",
-      "patched_source_sha256": "721e087541b20d9ae16165a997886f559c7a336733394538289cfac1abf29e4e",
       "kind": "upstream-copy",
       "local_sha256": "721e087541b20d9ae16165a997886f559c7a336733394538289cfac1abf29e4e"
     },
     {
+      "path": "backend/archive/squashfs_malformed_test.go",
+      "upstream_path": "backend/archive/squashfs_malformed_test.go",
+      "upstream_sha256": "ef6dfde87958f305cb9246392b302b05b2ef6b111652e5e284d2950dbc09c540",
+      "kind": "upstream-copy",
+      "local_sha256": "07c783e6b92cae196db66137dfef5b51684444e101f7f225d04af6ff95d0b625"
+    },
+    {
       "path": "backend/archive/zip/zip.go",
       "upstream_path": "backend/archive/zip/zip.go",
-      "upstream_sha256": "299f42e067924eb5835b33d2c43811c3a0d44a571264f0da2a4e44686d60cbd4",
-      "patched_source_sha256": "299f42e067924eb5835b33d2c43811c3a0d44a571264f0da2a4e44686d60cbd4",
+      "upstream_sha256": "11a8fdbfc32ba15d19af1cd003b2d59f37e291339eacf7330644ea75dddfe4d0",
       "kind": "upstream-copy",
-      "local_sha256": "b175ea7ecae9add17e95d8d67db2e5e27dc37387a928c06d1edcdb95836af622"
+      "local_sha256": "3a4c29c6703420059386704d66a6fe40a943e9dc9127791da683a76af4322072"
     },
     {
       "path": "backend/archive/zip/zip_internal_test.go",
       "upstream_path": "backend/archive/zip/zip_internal_test.go",
-      "upstream_sha256": "aa0e79772c0420679afda626275576947e600ef987d95cb11dba555185f01ae5",
-      "patched_source_sha256": "aa0e79772c0420679afda626275576947e600ef987d95cb11dba555185f01ae5",
+      "upstream_sha256": "4300e62463fce33066696660ea7c550842c85e160a7a46ff3947a9f33efe601c",
       "kind": "upstream-copy",
-      "local_sha256": "5c9f8c48872569ad138cc3695f702c65ded106a976292f757e7723067aa06c7d"
+      "local_sha256": "8f28bb6035ff262b8a3cfec4adc6127dc00800ff58d767004b534c8b0cee19b5"
     },
     {
       "path": "cmd/cmount/arch.go",
       "upstream_path": "cmd/cmount/arch.go",
       "upstream_sha256": "0acaf437777a7ee2ebbee38639438d47d218b9d57a2618f9f35664997fedd780",
-      "patched_source_sha256": "0acaf437777a7ee2ebbee38639438d47d218b9d57a2618f9f35664997fedd780",
       "kind": "upstream-copy",
       "local_sha256": "3f6f7448206267a8de6443fce48429b5d4696088c8ef45e9bacacf7d936adbcb"
     },
     {
       "path": "cmd/cmount/fs.go",
       "upstream_path": "cmd/cmount/fs.go",
-      "upstream_sha256": "5dbf6888ee945d2a871d90e33e190928dc5c4d373f149f0e9dc2e4ed14519bf8",
-      "patched_source_sha256": "5dbf6888ee945d2a871d90e33e190928dc5c4d373f149f0e9dc2e4ed14519bf8",
+      "upstream_sha256": "fe9ce2965579beb0cb5a900b47afaca6570f4703a8d4382e383b4caf9d2dda7b",
       "kind": "upstream-copy",
-      "local_sha256": "9d14660b418983b1a97115a9c7486cbefb9763ccc238789a1296bf0a8181f1ee"
+      "local_sha256": "c63dc0b773549175c0cf9e28fa334d1f5878a4ec956491d93076fb1366c918a0"
     },
     {
       "path": "cmd/cmount/mount.go",
       "upstream_path": "cmd/cmount/mount.go",
       "upstream_sha256": "6632889dfd75c3384fc3f0c6a5e58e15b4a438056ea3811753070ba7d51a31e1",
-      "patched_source_sha256": "6632889dfd75c3384fc3f0c6a5e58e15b4a438056ea3811753070ba7d51a31e1",
       "kind": "upstream-copy",
       "local_sha256": "2992e78c8f2b229220e6f1622686a3531182b41a3061e50154374586aafd664b"
     },
@@ -181,7 +164,6 @@
       "path": "cmd/cmount/mount_brew.go",
       "upstream_path": "cmd/cmount/mount_brew.go",
       "upstream_sha256": "a1eca771ceae5862cb2ab130e4fc43f81f04319b0a3fe38356daf88192da6abc",
-      "patched_source_sha256": "a1eca771ceae5862cb2ab130e4fc43f81f04319b0a3fe38356daf88192da6abc",
       "kind": "upstream-copy",
       "local_sha256": "fb1be41e374365be1bc4b2f8a8ac0797f214a0d0100ecbfcbba60be64406b568"
     },
@@ -189,7 +171,6 @@
       "path": "cmd/cmount/mount_test.go",
       "upstream_path": "cmd/cmount/mount_test.go",
       "upstream_sha256": "964de97befe276901346f9f3f6db2ca86467d88e1aecfc341959c1a014fce087",
-      "patched_source_sha256": "964de97befe276901346f9f3f6db2ca86467d88e1aecfc341959c1a014fce087",
       "kind": "upstream-copy",
       "local_sha256": "98f10fca9eff64275f9b6d54f28c3f325e17a9659d0dff39933d2bb69bf8b6a0"
     },
@@ -197,7 +178,6 @@
       "path": "cmd/cmount/mount_unsupported.go",
       "upstream_path": "cmd/cmount/mount_unsupported.go",
       "upstream_sha256": "9c0ada3764c6a597256b758b48285c4a20fe377a520995e0db6a06178fbcec13",
-      "patched_source_sha256": "9c0ada3764c6a597256b758b48285c4a20fe377a520995e0db6a06178fbcec13",
       "kind": "upstream-copy",
       "local_sha256": "432cf88818c1313b7843427db2f9213d31d164210ec6f3b9910d5322beae4d58"
     },
@@ -205,7 +185,6 @@
       "path": "cmd/cmount/mountpoint_other.go",
       "upstream_path": "cmd/cmount/mountpoint_other.go",
       "upstream_sha256": "08f007767c578c534c1133ca79f10c873819ca2c4b2a835c73432ca147052a28",
-      "patched_source_sha256": "08f007767c578c534c1133ca79f10c873819ca2c4b2a835c73432ca147052a28",
       "kind": "upstream-copy",
       "local_sha256": "ddc91b3b598c5f630bbb3d8300b45f2b3be5fd3d08dd290f54e354d8e58f54a6"
     },
@@ -213,7 +192,6 @@
       "path": "cmd/cmount/mountpoint_windows.go",
       "upstream_path": "cmd/cmount/mountpoint_windows.go",
       "upstream_sha256": "18140250a2ce8434c666b168191b14f2f22175c3ee9c59451b364a93fa3b3323",
-      "patched_source_sha256": "18140250a2ce8434c666b168191b14f2f22175c3ee9c59451b364a93fa3b3323",
       "kind": "upstream-copy",
       "local_sha256": "05f8176f17fca93c9d398c5846560eec17cfd3fb0a7ad9796d4f5152427efb0a"
     },
@@ -221,7 +199,6 @@
       "path": "cmd/mount/dir.go",
       "upstream_path": "cmd/mount/dir.go",
       "upstream_sha256": "75e62057f1bb7bb779a6679944811def22abc45101835f932971eab6c529aa98",
-      "patched_source_sha256": "75e62057f1bb7bb779a6679944811def22abc45101835f932971eab6c529aa98",
       "kind": "upstream-copy",
       "local_sha256": "67a5b2dd611b2717c2cb9cdd0d5d3be31d27d2b44a5d4375150832896c0a2a90"
     },
@@ -229,7 +206,6 @@
       "path": "cmd/mount/file.go",
       "upstream_path": "cmd/mount/file.go",
       "upstream_sha256": "d5c7ce3e223af881e3ada67036ba69844fd99ccb556dfdbde9664e7bb914445e",
-      "patched_source_sha256": "d5c7ce3e223af881e3ada67036ba69844fd99ccb556dfdbde9664e7bb914445e",
       "kind": "upstream-copy",
       "local_sha256": "ec2e8212e49d0a034d5ce5beaa95847b6baccbadcf55ccfb1f890260f4e1dfb9"
     },
@@ -237,7 +213,6 @@
       "path": "cmd/mount/fs.go",
       "upstream_path": "cmd/mount/fs.go",
       "upstream_sha256": "fc5f6e95d55fa6bf0c5c5ff00b2947f4480b3d3239ed1607d6fcdfe7ab52d4d5",
-      "patched_source_sha256": "fc5f6e95d55fa6bf0c5c5ff00b2947f4480b3d3239ed1607d6fcdfe7ab52d4d5",
       "kind": "upstream-copy",
       "local_sha256": "d5c08562e20ffaa7501fab14b2473cf0e474cf8c97e5731f22d96a7f33a7300d"
     },
@@ -245,7 +220,6 @@
       "path": "cmd/mount/handle.go",
       "upstream_path": "cmd/mount/handle.go",
       "upstream_sha256": "3afceb82608d8991dd2bcdb271551d8aa6307cc7da5a2dde568c5960599c9a42",
-      "patched_source_sha256": "3afceb82608d8991dd2bcdb271551d8aa6307cc7da5a2dde568c5960599c9a42",
       "kind": "upstream-copy",
       "local_sha256": "663006db2927deeb20199ecce55c74b93596b74030a2efd84db8270e6514966f"
     },
@@ -253,7 +227,6 @@
       "path": "cmd/mount/mount.go",
       "upstream_path": "cmd/mount/mount.go",
       "upstream_sha256": "d4c7dbc4bcd40647bfabd27eba66718914a8a5d1c5f0c6d16df763e299a97cd4",
-      "patched_source_sha256": "d4c7dbc4bcd40647bfabd27eba66718914a8a5d1c5f0c6d16df763e299a97cd4",
       "kind": "upstream-copy",
       "local_sha256": "b004def63cd735af45895b87f492f6aa66e7a6ccdde3a025174a190af9d59659"
     },
@@ -261,7 +234,6 @@
       "path": "cmd/mount/mount_test.go",
       "upstream_path": "cmd/mount/mount_test.go",
       "upstream_sha256": "005af674a51b5addcf5099651fbbeb70c6ac0080f9d59512bd3a666d4100daef",
-      "patched_source_sha256": "005af674a51b5addcf5099651fbbeb70c6ac0080f9d59512bd3a666d4100daef",
       "kind": "upstream-copy",
       "local_sha256": "bd49ac56316b7151ac9a22bf9574605fa34c51e2afe3a98453eaf9afdde6f9a5"
     },
@@ -269,7 +241,6 @@
       "path": "cmd/mount/mount_unsupported.go",
       "upstream_path": "cmd/mount/mount_unsupported.go",
       "upstream_sha256": "5ef74a49856dc8efa96a54f724c631001f18fbb59753bf99538c2e58757148e0",
-      "patched_source_sha256": "5ef74a49856dc8efa96a54f724c631001f18fbb59753bf99538c2e58757148e0",
       "kind": "upstream-copy",
       "local_sha256": "a81d099e7f44ad37d4b5cba712743dd5d8c78bae8325e8b5c2b0d24dc8af9fdd"
     },
@@ -277,7 +248,6 @@
       "path": "cmd/mount2/file.go",
       "upstream_path": "cmd/mount2/file.go",
       "upstream_sha256": "1ee9c4287e7607e209ae3bac6f126e86efc346d705c959375da6e35af5f8ff87",
-      "patched_source_sha256": "1ee9c4287e7607e209ae3bac6f126e86efc346d705c959375da6e35af5f8ff87",
       "kind": "upstream-copy",
       "local_sha256": "f8e460eaf0e6c5b65da3e8a794991155912403df0247c59c957ad5b0c7681c39"
     },
@@ -285,7 +255,6 @@
       "path": "cmd/mount2/fs.go",
       "upstream_path": "cmd/mount2/fs.go",
       "upstream_sha256": "a87f4aa44b0981a29b4f60a04313701a516e8ca568f6a3bed770d7fedb70cc3c",
-      "patched_source_sha256": "a87f4aa44b0981a29b4f60a04313701a516e8ca568f6a3bed770d7fedb70cc3c",
       "kind": "upstream-copy",
       "local_sha256": "ba36df537da2c493a1a49391e81bfc3b976f2c68ac21da8dbbc76ca773ba1e6c"
     },
@@ -293,7 +262,6 @@
       "path": "cmd/mount2/mount.go",
       "upstream_path": "cmd/mount2/mount.go",
       "upstream_sha256": "1b932c1758f15f8cc2be5fb450dea54e6d4118b36ca81666bff1860b98a9360f",
-      "patched_source_sha256": "1b932c1758f15f8cc2be5fb450dea54e6d4118b36ca81666bff1860b98a9360f",
       "kind": "upstream-copy",
       "local_sha256": "a87c132e40d254f875c4d23d073e062d384d8cc0152aee14277b975d9bca3840"
     },
@@ -301,7 +269,6 @@
       "path": "cmd/mount2/mount_test.go",
       "upstream_path": "cmd/mount2/mount_test.go",
       "upstream_sha256": "1030d2dac8e1a784ecf0ff999d4b42fc1c3d9879ab64ec6b4edc4fc897def3a8",
-      "patched_source_sha256": "1030d2dac8e1a784ecf0ff999d4b42fc1c3d9879ab64ec6b4edc4fc897def3a8",
       "kind": "upstream-copy",
       "local_sha256": "33b975ccf3f9c459e20d6b336890a7a705d3251dd131546492b70908392fd017"
     },
@@ -309,7 +276,6 @@
       "path": "cmd/mount2/mount_unsupported.go",
       "upstream_path": "cmd/mount2/mount_unsupported.go",
       "upstream_sha256": "76b9d42b06e80e5d08f4d511c2cf29be062eef96afbfb204d4f8f3398f809a5b",
-      "patched_source_sha256": "76b9d42b06e80e5d08f4d511c2cf29be062eef96afbfb204d4f8f3398f809a5b",
       "kind": "upstream-copy",
       "local_sha256": "6e9e061a768ad2a2c3dc5d02389493e0a929ae52c209a8794c3f76dbbb51649a"
     },
@@ -317,7 +283,6 @@
       "path": "cmd/mount2/node.go",
       "upstream_path": "cmd/mount2/node.go",
       "upstream_sha256": "ecf5fb8a8936243d1ec708c96dc739e25ff7306a12dfdb6364bc4b02b40b43a5",
-      "patched_source_sha256": "ecf5fb8a8936243d1ec708c96dc739e25ff7306a12dfdb6364bc4b02b40b43a5",
       "kind": "upstream-copy",
       "local_sha256": "7a7238337652d8e8280adf87dafab1bcd812a387cecbc811abeceb355abfd4fa"
     },
@@ -325,7 +290,6 @@
       "path": "cmd/mount2/node_test.go",
       "upstream_path": "cmd/mount2/node_test.go",
       "upstream_sha256": "0442b5faae33662eb68db34bb04163e079c9fce5eac3d128252e2f7a6b0956be",
-      "patched_source_sha256": "0442b5faae33662eb68db34bb04163e079c9fce5eac3d128252e2f7a6b0956be",
       "kind": "upstream-copy",
       "local_sha256": "ca943a7d9da967909ab7bf9e0f8433784bfab71913dd423e74cc31128ffe0ce7"
     },
@@ -333,7 +297,6 @@
       "path": "cmd/mountlib/check_linux.go",
       "upstream_path": "cmd/mountlib/check_linux.go",
       "upstream_sha256": "19f21f6412af6d82dcac860f219c4bdace079fd94470a895cfb64ded8aee0205",
-      "patched_source_sha256": "19f21f6412af6d82dcac860f219c4bdace079fd94470a895cfb64ded8aee0205",
       "kind": "upstream-copy",
       "local_sha256": "559940f61aaf2a327b742183eec727bb5d825acd2a3e2b59a1c36e9374272b59"
     },
@@ -341,23 +304,20 @@
       "path": "cmd/mountlib/check_other.go",
       "upstream_path": "cmd/mountlib/check_other.go",
       "upstream_sha256": "d5f36c77df980fc7843dca607d96f60f341e58e9d1aa864e2ccd33a522c11c06",
-      "patched_source_sha256": "d5f36c77df980fc7843dca607d96f60f341e58e9d1aa864e2ccd33a522c11c06",
       "kind": "upstream-copy",
       "local_sha256": "92f18b7c65b165a9f7c17e48290322d25dd144082493b955933b177a968b3c2c"
     },
     {
       "path": "cmd/mountlib/mount.go",
       "upstream_path": "cmd/mountlib/mount.go",
-      "upstream_sha256": "ac0201144e1b4ab6259649c498d390a6a5b906b4452f794e1d9c7a67abcaa623",
-      "patched_source_sha256": "ac0201144e1b4ab6259649c498d390a6a5b906b4452f794e1d9c7a67abcaa623",
+      "upstream_sha256": "556ff25ff9d0a1477b7993330829e40eca834de89c3db921250e0cc91be70eef",
       "kind": "upstream-copy",
-      "local_sha256": "34caff5a29efca3d3f41a6adba3d3e78f61c8b51593ff501b74089aeff3cad80"
+      "local_sha256": "b5269b48838fbf794c1699cbb6f2a0b6dae38ba97691c46a82cd2181a58d95cf"
     },
     {
       "path": "cmd/mountlib/mount.md",
       "upstream_path": "cmd/mountlib/mount.md",
       "upstream_sha256": "b88102135a8bb62a53682172068e5d4dcf730f3effb055897fc35a02102d53ca",
-      "patched_source_sha256": "b88102135a8bb62a53682172068e5d4dcf730f3effb055897fc35a02102d53ca",
       "kind": "upstream-copy",
       "local_sha256": "b88102135a8bb62a53682172068e5d4dcf730f3effb055897fc35a02102d53ca"
     },
@@ -365,7 +325,6 @@
       "path": "cmd/mountlib/rc.go",
       "upstream_path": "cmd/mountlib/rc.go",
       "upstream_sha256": "480ae43fa672229792f5eee070fe8cf9d58584d537838ed319514f6fd0092193",
-      "patched_source_sha256": "480ae43fa672229792f5eee070fe8cf9d58584d537838ed319514f6fd0092193",
       "kind": "upstream-copy",
       "local_sha256": "88340b48f922f8a7c48d9ff431613cfef96681c4b688262018e9f720e9c4d7cd"
     },
@@ -373,7 +332,6 @@
       "path": "cmd/mountlib/rc_test.go",
       "upstream_path": "cmd/mountlib/rc_test.go",
       "upstream_sha256": "0481fadf79e6187d38eaa9d575a99223901a1d50c2cf2bd9e9e7325c2ef8e042",
-      "patched_source_sha256": "0481fadf79e6187d38eaa9d575a99223901a1d50c2cf2bd9e9e7325c2ef8e042",
       "kind": "upstream-copy",
       "local_sha256": "ebb13b487a68988c09552ec4a118882ce073c2ab572fc2c4c1cd8c018fd6a652"
     },
@@ -381,7 +339,6 @@
       "path": "cmd/mountlib/utils.go",
       "upstream_path": "cmd/mountlib/utils.go",
       "upstream_sha256": "0e7304a6e7949f9f7f12aed35c40991d0ed0563756b1e2e0d84d79f45e32e83a",
-      "patched_source_sha256": "0e7304a6e7949f9f7f12aed35c40991d0ed0563756b1e2e0d84d79f45e32e83a",
       "kind": "upstream-copy",
       "local_sha256": "6eec2b94d073e33356c3c5eca39442a2cdcc7a6e78a5b0fff849280ed377112b"
     },
@@ -389,7 +346,6 @@
       "path": "cmd/nfsmount/nfsmount.go",
       "upstream_path": "cmd/nfsmount/nfsmount.go",
       "upstream_sha256": "198f2f01e0f0e77b6a6b56653d2eafef11aa12c0db853076c2c7bd8d70741b5f",
-      "patched_source_sha256": "198f2f01e0f0e77b6a6b56653d2eafef11aa12c0db853076c2c7bd8d70741b5f",
       "kind": "upstream-copy",
       "local_sha256": "5cf05ba17026204c3e94252ea41e43070f59f29af987205a7d916c06cb50510a"
     },
@@ -397,7 +353,6 @@
       "path": "cmd/nfsmount/nfsmount_test.go",
       "upstream_path": "cmd/nfsmount/nfsmount_test.go",
       "upstream_sha256": "62b410208674b32c96694cf2b07d72bdfc6e400b88e6c61c313172114ac38f3e",
-      "patched_source_sha256": "62b410208674b32c96694cf2b07d72bdfc6e400b88e6c61c313172114ac38f3e",
       "kind": "upstream-copy",
       "local_sha256": "4e44a9d614859a43e62873ba294de76280c8aaa0b9d79d32955415f2d7b1e863"
     },
@@ -405,103 +360,13 @@
       "path": "cmd/nfsmount/nfsmount_unsupported.go",
       "upstream_path": "cmd/nfsmount/nfsmount_unsupported.go",
       "upstream_sha256": "24870a1335276f75384d766d8707b0626cf802a562bd8460425f5384edf02d5f",
-      "patched_source_sha256": "24870a1335276f75384d766d8707b0626cf802a562bd8460425f5384edf02d5f",
       "kind": "upstream-copy",
       "local_sha256": "125fa8a308f277f9de29e007b883bc82420400ce65b03f199d1d6e75857dcbaa"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/noselfupdate.go",
-      "upstream_path": "cmd/selfupdate/noselfupdate.go",
-      "upstream_sha256": "1d60fa9068890f4851530571fa8763804100a168e4cc775c6b0ad5896df71ad7",
-      "patched_source_sha256": "1d60fa9068890f4851530571fa8763804100a168e4cc775c6b0ad5896df71ad7",
-      "kind": "upstream-copy",
-      "local_sha256": "4f04b7cd8144f5ee11427bf6e12ba16c5628472fc85427261abda9f54c304d2f"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/selfupdate.go",
-      "upstream_path": "cmd/selfupdate/selfupdate.go",
-      "upstream_sha256": "8a4100f147bc3a65a28aaec971368233fc5a7af8d3db2d1bc50e9fc0d52742b6",
-      "patched_source_sha256": "8a4100f147bc3a65a28aaec971368233fc5a7af8d3db2d1bc50e9fc0d52742b6",
-      "kind": "upstream-copy",
-      "local_sha256": "a517aebb4b22c0047218776fa9d0b3dc3166bb17a9a1b48509d0dd864dfa156f"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/selfupdate.md",
-      "upstream_path": "cmd/selfupdate/selfupdate.md",
-      "upstream_sha256": "9f0b271757e88af9989ef9efd09dfe4cf0930eae4d7178bb7c644b59f8c1a7b4",
-      "patched_source_sha256": "9f0b271757e88af9989ef9efd09dfe4cf0930eae4d7178bb7c644b59f8c1a7b4",
-      "kind": "upstream-copy",
-      "local_sha256": "9f0b271757e88af9989ef9efd09dfe4cf0930eae4d7178bb7c644b59f8c1a7b4"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/selfupdate_test.go",
-      "upstream_path": "cmd/selfupdate/selfupdate_test.go",
-      "upstream_sha256": "88ec849e49e6e1e739539160160ff6fd096c7fd76680859bb4e7d1af76ec0d5e",
-      "patched_source_sha256": "88ec849e49e6e1e739539160160ff6fd096c7fd76680859bb4e7d1af76ec0d5e",
-      "kind": "upstream-copy",
-      "local_sha256": "bf780c36550970e2fed69000ea9ac58a5cd19060ca03899cf891b23fe387e9cb"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/testdata/verify/SHA256SUMS",
-      "upstream_path": "cmd/selfupdate/testdata/verify/SHA256SUMS",
-      "upstream_sha256": "e016108d2400ee0b0198af478a72fe79e0829fd72b8dd78df808d331e5eb2058",
-      "patched_source_sha256": "e016108d2400ee0b0198af478a72fe79e0829fd72b8dd78df808d331e5eb2058",
-      "kind": "upstream-copy",
-      "local_sha256": "e016108d2400ee0b0198af478a72fe79e0829fd72b8dd78df808d331e5eb2058"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/testdata/verify/archive.zip",
-      "upstream_path": "cmd/selfupdate/testdata/verify/archive.zip",
-      "upstream_sha256": "b20b47f579a2c790ca752fb5d8e5651fade7d5867cbac0a4f71e805fc5c468d0",
-      "patched_source_sha256": "b20b47f579a2c790ca752fb5d8e5651fade7d5867cbac0a4f71e805fc5c468d0",
-      "kind": "upstream-copy",
-      "local_sha256": "b20b47f579a2c790ca752fb5d8e5651fade7d5867cbac0a4f71e805fc5c468d0"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/verify.go",
-      "upstream_path": "cmd/selfupdate/verify.go",
-      "upstream_sha256": "ca9a3b4e64c9742457dfee1b669c1e4c6251863e529b3bdfe30594b1e765f369",
-      "patched_source_sha256": "ca9a3b4e64c9742457dfee1b669c1e4c6251863e529b3bdfe30594b1e765f369",
-      "kind": "upstream-copy",
-      "local_sha256": "b625242f5094cd61b1951beeff6b414fa9de0d678313bc5c8c7251cb0a06ee35"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/verify_test.go",
-      "upstream_path": "cmd/selfupdate/verify_test.go",
-      "upstream_sha256": "44a55aac80e2ad8f8efe69312ef767d05a29def7a14475496bbae33419e9457c",
-      "patched_source_sha256": "44a55aac80e2ad8f8efe69312ef767d05a29def7a14475496bbae33419e9457c",
-      "kind": "upstream-copy",
-      "local_sha256": "129491dd470c78e22de39d15b48fc4a691465a7d34de5a5a1767921b4340e14c"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/writable_unix.go",
-      "upstream_path": "cmd/selfupdate/writable_unix.go",
-      "upstream_sha256": "a34b0b257c879221a552a845a08349ca68fd6f101e2945e48b0f71c066eff725",
-      "patched_source_sha256": "a34b0b257c879221a552a845a08349ca68fd6f101e2945e48b0f71c066eff725",
-      "kind": "upstream-copy",
-      "local_sha256": "e05760af3db4dabb0c2d00a6ab7b03494b19fde32faf5510c3bf3b64d9eb0ad5"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/writable_unsupported.go",
-      "upstream_path": "cmd/selfupdate/writable_unsupported.go",
-      "upstream_sha256": "e8bcd49b493319109c7107c3540c2fc8d7c7776c53fe280a8bab61d2dfb4b0d7",
-      "patched_source_sha256": "e8bcd49b493319109c7107c3540c2fc8d7c7776c53fe280a8bab61d2dfb4b0d7",
-      "kind": "upstream-copy",
-      "local_sha256": "dc06c8ed816c3e63210592522b29d147157369b2f63197fe3c41f487855f4e45"
-    },
-    {
-      "path": "cmd/upstreamselfupdate/writable_windows.go",
-      "upstream_path": "cmd/selfupdate/writable_windows.go",
-      "upstream_sha256": "60e1c04c4b663239e297b7679bda5a870f3e3d28a3f9f1cccc89c5a019eb98b4",
-      "patched_source_sha256": "60e1c04c4b663239e297b7679bda5a870f3e3d28a3f9f1cccc89c5a019eb98b4",
-      "kind": "upstream-copy",
-      "local_sha256": "32003084ad6d3fd39123ee6a2e39a6c6db4bb8449ce359f6fd48543b597d639e"
     },
     {
       "path": "cmd/serve/dlna/LICENSE.anacrolix",
       "upstream_path": "cmd/serve/dlna/LICENSE.anacrolix",
       "upstream_sha256": "d51c00bad765eba320d6f2f9c955a48f060835a3cd0b9803e06bbc345efffd4b",
-      "patched_source_sha256": "d51c00bad765eba320d6f2f9c955a48f060835a3cd0b9803e06bbc345efffd4b",
       "kind": "upstream-copy",
       "local_sha256": "d51c00bad765eba320d6f2f9c955a48f060835a3cd0b9803e06bbc345efffd4b"
     },
@@ -509,7 +374,6 @@
       "path": "cmd/serve/dlna/cds.go",
       "upstream_path": "cmd/serve/dlna/cds.go",
       "upstream_sha256": "2dd80b135857e1158f9d7020eaf85dd1c98f422f4aa39ed42edbc0b488802ae2",
-      "patched_source_sha256": "2dd80b135857e1158f9d7020eaf85dd1c98f422f4aa39ed42edbc0b488802ae2",
       "kind": "upstream-copy",
       "local_sha256": "e1393076a61a5b283d4644d2ac29eceb7749da1ea46e6e181a09f848e080a27f"
     },
@@ -517,7 +381,6 @@
       "path": "cmd/serve/dlna/cds_test.go",
       "upstream_path": "cmd/serve/dlna/cds_test.go",
       "upstream_sha256": "c33344d035aea7800efb7e0912d45a042edafad9db256002291f262486b340ff",
-      "patched_source_sha256": "c33344d035aea7800efb7e0912d45a042edafad9db256002291f262486b340ff",
       "kind": "upstream-copy",
       "local_sha256": "2d87003e47123a02d1ac4b7a56a2c318c332801d38bf5dda10b86ad8316f0281"
     },
@@ -525,7 +388,6 @@
       "path": "cmd/serve/dlna/cms.go",
       "upstream_path": "cmd/serve/dlna/cms.go",
       "upstream_sha256": "a7cd539fdec2c8e5c406a8a84fba810e1c9d36245456ade224e4d52d21286942",
-      "patched_source_sha256": "a7cd539fdec2c8e5c406a8a84fba810e1c9d36245456ade224e4d52d21286942",
       "kind": "upstream-copy",
       "local_sha256": "51b250cc73d998e206ceece6ed0d03133956b5ea0cec454854c55517568a5b60"
     },
@@ -533,7 +395,6 @@
       "path": "cmd/serve/dlna/dlna.go",
       "upstream_path": "cmd/serve/dlna/dlna.go",
       "upstream_sha256": "4034172bef6e7369659d08900176a461fee7065bd477491425a8f09041a99b64",
-      "patched_source_sha256": "4034172bef6e7369659d08900176a461fee7065bd477491425a8f09041a99b64",
       "kind": "upstream-copy",
       "local_sha256": "b591dbfe1a87e0d9e7b7b7186e9daea67b455924e413ff2deae33f36b5aad26d"
     },
@@ -541,31 +402,27 @@
       "path": "cmd/serve/dlna/dlna_test.go",
       "upstream_path": "cmd/serve/dlna/dlna_test.go",
       "upstream_sha256": "e2e223937dbab706229f54bb01f1a32b4b62c1a1aaa93e42379e8eb4583568d0",
-      "patched_source_sha256": "e2e223937dbab706229f54bb01f1a32b4b62c1a1aaa93e42379e8eb4583568d0",
       "kind": "upstream-copy",
       "local_sha256": "d0250ba8ae976c269af4ac01b588383ff41f0464d94d732e2a86eb106a7518fa"
     },
     {
       "path": "cmd/serve/dlna/dlna_util.go",
       "upstream_path": "cmd/serve/dlna/dlna_util.go",
-      "upstream_sha256": "58f0b020646274d49c7c2dc377c1a19d453463b428aee90dd71c40030080c171",
-      "patched_source_sha256": "58f0b020646274d49c7c2dc377c1a19d453463b428aee90dd71c40030080c171",
+      "upstream_sha256": "e8438087a9ea05dab3e5dc39a1814cf09413ae4730ac24dcade8513407b5ccc0",
       "kind": "upstream-copy",
-      "local_sha256": "3e89c3770faa3643a5fde5647946fff6c9a5e731c082740e96bfd0d01f21b62f"
+      "local_sha256": "9c927a7686f60a308655d10a34266bfb7151f51115086d08a7ace6a61291035f"
     },
     {
       "path": "cmd/serve/dlna/dlna_util_test.go",
       "upstream_path": "cmd/serve/dlna/dlna_util_test.go",
-      "upstream_sha256": "f41f190eef4be09c7b172b7016ad03a375c491c104322886b9aa07c127a5a22c",
-      "patched_source_sha256": "f41f190eef4be09c7b172b7016ad03a375c491c104322886b9aa07c127a5a22c",
+      "upstream_sha256": "4298347a51010a2a27de75e465dbcd9e57d88e1d0361d6fad37e88f7ebc34a7d",
       "kind": "upstream-copy",
-      "local_sha256": "dd53653a1a11de8694376e5ea096bfa04700cd5a87f2580c88ee7611172194e9"
+      "local_sha256": "f335b91134da3936ef5d175eb0dcbcb743bbc7ff9ec7207714f14dd5a14c98f5"
     },
     {
       "path": "cmd/serve/dlna/mrrs.go",
       "upstream_path": "cmd/serve/dlna/mrrs.go",
       "upstream_sha256": "e4421168d612ab88cf3ea952c6b25e429a320e84141562d92ade3cd253017530",
-      "patched_source_sha256": "e4421168d612ab88cf3ea952c6b25e429a320e84141562d92ade3cd253017530",
       "kind": "upstream-copy",
       "local_sha256": "1f6eff8c410f2ca04f638c0fe04166aec6576c66dfa1e767e448b5a6cb6c6558"
     },
@@ -573,7 +430,6 @@
       "path": "cmd/serve/dlna/testdata/files/small_jpeg.jpg",
       "upstream_path": "cmd/serve/dlna/testdata/files/small_jpeg.jpg",
       "upstream_sha256": "0b8d8b5f15046343fd32f451df93acc2bdd9e6373be478b968e4cad6b6647351",
-      "patched_source_sha256": "0b8d8b5f15046343fd32f451df93acc2bdd9e6373be478b968e4cad6b6647351",
       "kind": "upstream-copy",
       "local_sha256": "0b8d8b5f15046343fd32f451df93acc2bdd9e6373be478b968e4cad6b6647351"
     },
@@ -581,7 +437,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir/video.mp4",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir/video.mp4",
       "upstream_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
-      "patched_source_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
       "kind": "upstream-copy",
       "local_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356"
     },
@@ -589,7 +444,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir/video.srt",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir/video.srt",
       "upstream_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
-      "patched_source_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
       "kind": "upstream-copy",
       "local_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1"
     },
@@ -597,7 +451,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir2/Subs/video.en.srt",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir2/Subs/video.en.srt",
       "upstream_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
-      "patched_source_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
       "kind": "upstream-copy",
       "local_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1"
     },
@@ -605,7 +458,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir2/Subs/video.srt",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir2/Subs/video.srt",
       "upstream_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
-      "patched_source_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
       "kind": "upstream-copy",
       "local_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1"
     },
@@ -613,7 +465,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir2/video.mp4",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir2/video.mp4",
       "upstream_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
-      "patched_source_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
       "kind": "upstream-copy",
       "local_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356"
     },
@@ -621,7 +472,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir3/Subs/video.idx",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir3/Subs/video.idx",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -629,7 +479,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir3/Subs/video.sub",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir3/Subs/video.sub",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -637,7 +486,6 @@
       "path": "cmd/serve/dlna/testdata/files/subdir3/video.mp4",
       "upstream_path": "cmd/serve/dlna/testdata/files/subdir3/video.mp4",
       "upstream_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
-      "patched_source_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
       "kind": "upstream-copy",
       "local_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356"
     },
@@ -645,7 +493,6 @@
       "path": "cmd/serve/dlna/testdata/files/video.en.srt",
       "upstream_path": "cmd/serve/dlna/testdata/files/video.en.srt",
       "upstream_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
-      "patched_source_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
       "kind": "upstream-copy",
       "local_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1"
     },
@@ -653,7 +500,6 @@
       "path": "cmd/serve/dlna/testdata/files/video.mp4",
       "upstream_path": "cmd/serve/dlna/testdata/files/video.mp4",
       "upstream_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
-      "patched_source_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356",
       "kind": "upstream-copy",
       "local_sha256": "eeb1166096256e254eee9418914e6b20268b172a930e9ed46afa6d99574c5356"
     },
@@ -661,7 +507,6 @@
       "path": "cmd/serve/dlna/testdata/files/video.nfo",
       "upstream_path": "cmd/serve/dlna/testdata/files/video.nfo",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -669,7 +514,6 @@
       "path": "cmd/serve/dlna/testdata/files/video.srt",
       "upstream_path": "cmd/serve/dlna/testdata/files/video.srt",
       "upstream_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
-      "patched_source_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1",
       "kind": "upstream-copy",
       "local_sha256": "022e00399e8b60b4759cb62c3beb8d9b627b35c7c44afa685e47664095bf8ee1"
     },
@@ -677,7 +521,6 @@
       "path": "cmd/serve/docker/api.go",
       "upstream_path": "cmd/serve/docker/api.go",
       "upstream_sha256": "755f23421e9f2bd3a9d6f48a020fa8bae11a8ddaea26c25fd30ead79a59553c3",
-      "patched_source_sha256": "755f23421e9f2bd3a9d6f48a020fa8bae11a8ddaea26c25fd30ead79a59553c3",
       "kind": "upstream-copy",
       "local_sha256": "4804989987f22ff4514b6b57ee2574bdc9bb5a68b2f59d231a369fe2bbeee1f3"
     },
@@ -685,7 +528,6 @@
       "path": "cmd/serve/docker/docker.go",
       "upstream_path": "cmd/serve/docker/docker.go",
       "upstream_sha256": "2842f94e803295fd0f441f42eb686b14a57cb7a137be847dc19c1c469ad17b4d",
-      "patched_source_sha256": "2842f94e803295fd0f441f42eb686b14a57cb7a137be847dc19c1c469ad17b4d",
       "kind": "upstream-copy",
       "local_sha256": "23a07aea889670988804b15862c7559dbffbd41d4ba545aa434529ec2e4fe9dd"
     },
@@ -693,23 +535,20 @@
       "path": "cmd/serve/docker/docker.md",
       "upstream_path": "cmd/serve/docker/docker.md",
       "upstream_sha256": "89f786bbb08c395694eba947c895ffc9e9819f2814f5109a22e5c7b5578abf3f",
-      "patched_source_sha256": "89f786bbb08c395694eba947c895ffc9e9819f2814f5109a22e5c7b5578abf3f",
       "kind": "upstream-copy",
       "local_sha256": "89f786bbb08c395694eba947c895ffc9e9819f2814f5109a22e5c7b5578abf3f"
     },
     {
       "path": "cmd/serve/docker/docker_test.go",
       "upstream_path": "cmd/serve/docker/docker_test.go",
-      "upstream_sha256": "85820177ed2ea0394d1e00e9812571d8a7b2205fa13b565d0e55a8596b0594da",
-      "patched_source_sha256": "85820177ed2ea0394d1e00e9812571d8a7b2205fa13b565d0e55a8596b0594da",
+      "upstream_sha256": "0239203ee068c5cdd8a510d3779a76fabc7eb1134fc9ae46542583ef5f7ca599",
       "kind": "upstream-copy",
-      "local_sha256": "3172740b4947bb70972d97aae92bc066039b61e2145a2c517f7f06be57a1f918"
+      "local_sha256": "95dee9197bcc424f20b4793293d48b28aacd8ef043cda9d6248113a12deceb79"
     },
     {
       "path": "cmd/serve/docker/driver.go",
       "upstream_path": "cmd/serve/docker/driver.go",
       "upstream_sha256": "bfb1aa31afb1ffb5876f21bba6b26de5ca3650f5d69a8dca2c99f14de5b1ee15",
-      "patched_source_sha256": "bfb1aa31afb1ffb5876f21bba6b26de5ca3650f5d69a8dca2c99f14de5b1ee15",
       "kind": "upstream-copy",
       "local_sha256": "7894ad12bf50524afec975562e230a61add6e20c109cebd44506ae37c139b0db"
     },
@@ -717,7 +556,6 @@
       "path": "cmd/serve/docker/options.go",
       "upstream_path": "cmd/serve/docker/options.go",
       "upstream_sha256": "b9610c1b94da61f9f9b4630fcdc2540f62bcaefb9b731c436f3c2f0ff1b0f00c",
-      "patched_source_sha256": "b9610c1b94da61f9f9b4630fcdc2540f62bcaefb9b731c436f3c2f0ff1b0f00c",
       "kind": "upstream-copy",
       "local_sha256": "d7c984268c9df90a124325f6497caee8cf2b32ec45da4edfd79ed912edcbb5b1"
     },
@@ -725,7 +563,6 @@
       "path": "cmd/serve/docker/options_test.go",
       "upstream_path": "cmd/serve/docker/options_test.go",
       "upstream_sha256": "834e8d37ce59c99f72b7707f1cf0ee2a4a7fcdf1d58cc5ea089e09230457ad96",
-      "patched_source_sha256": "834e8d37ce59c99f72b7707f1cf0ee2a4a7fcdf1d58cc5ea089e09230457ad96",
       "kind": "upstream-copy",
       "local_sha256": "fd9643e8d40343b325f2c5719463cf4bc9c3601815d6eccfc519ac4ed14a6fc9"
     },
@@ -733,7 +570,6 @@
       "path": "cmd/serve/docker/serve.go",
       "upstream_path": "cmd/serve/docker/serve.go",
       "upstream_sha256": "427b2823e0a3a794319e7a4730d8edb79b644fe5db5eb52ae04a1e622c7b58d2",
-      "patched_source_sha256": "427b2823e0a3a794319e7a4730d8edb79b644fe5db5eb52ae04a1e622c7b58d2",
       "kind": "upstream-copy",
       "local_sha256": "379a3ca99a13b1b57c692808a044bcb72664ed313cd07fa7a3e525a391e9889c"
     },
@@ -741,7 +577,6 @@
       "path": "cmd/serve/docker/systemd.go",
       "upstream_path": "cmd/serve/docker/systemd.go",
       "upstream_sha256": "bceb11ea2739ad9fe638a84a0fb57a8d04c02b9beca7dda7d91827822c58e739",
-      "patched_source_sha256": "bceb11ea2739ad9fe638a84a0fb57a8d04c02b9beca7dda7d91827822c58e739",
       "kind": "upstream-copy",
       "local_sha256": "1e2ea59103deb62c3db170af471c57193159bf28dd8dc76e7c6fcd1bab9add0c"
     },
@@ -749,7 +584,6 @@
       "path": "cmd/serve/docker/systemd_unsupported.go",
       "upstream_path": "cmd/serve/docker/systemd_unsupported.go",
       "upstream_sha256": "81de2059cf09a813f474ff7e342a2da7b5e36df04d5ea085c90c8d5cbafe7c6f",
-      "patched_source_sha256": "81de2059cf09a813f474ff7e342a2da7b5e36df04d5ea085c90c8d5cbafe7c6f",
       "kind": "upstream-copy",
       "local_sha256": "f4046731c98d280593ddec774caf0be0c35f723f8054ce1b521d865dd7bd3836"
     },
@@ -757,7 +591,6 @@
       "path": "cmd/serve/docker/unix.go",
       "upstream_path": "cmd/serve/docker/unix.go",
       "upstream_sha256": "fc65c4dea55f2e12c0a2e59197aee49227d16f53ab80b6e16b75ffd04f781664",
-      "patched_source_sha256": "fc65c4dea55f2e12c0a2e59197aee49227d16f53ab80b6e16b75ffd04f781664",
       "kind": "upstream-copy",
       "local_sha256": "ff0ac85e4f3cf7b55de4c9ee4137b6ad8ac5da1ce30adfad8b6c274e28c48108"
     },
@@ -765,47 +598,48 @@
       "path": "cmd/serve/docker/unix_unsupported.go",
       "upstream_path": "cmd/serve/docker/unix_unsupported.go",
       "upstream_sha256": "00c5569fb138365bde8c8d751201e723e5862510ecb7ca71472fd1ce4fa36e37",
-      "patched_source_sha256": "00c5569fb138365bde8c8d751201e723e5862510ecb7ca71472fd1ce4fa36e37",
       "kind": "upstream-copy",
       "local_sha256": "0245a7506c3b20b0e1682091b57ef76701fc68ed86e0ec677656e2a7c2f4d7be"
     },
     {
       "path": "cmd/serve/docker/volume.go",
       "upstream_path": "cmd/serve/docker/volume.go",
-      "upstream_sha256": "957532229b86438e2b9e29b4c108b323627015fb9ed15fb8885c3709efa60826",
-      "patched_source_sha256": "957532229b86438e2b9e29b4c108b323627015fb9ed15fb8885c3709efa60826",
+      "upstream_sha256": "deee2d474b88b165fb2c78f22b152a61fd1e773c44542f0ad287e9c178d5297d",
       "kind": "upstream-copy",
-      "local_sha256": "f06056e73c224998b6c668fcb8c5185fc4ce560bcbe791b9bb26d93bea71c57c"
+      "local_sha256": "cc05730441cea529a58adf8af2df93991673803096d847d1ac397041257a7ea5"
+    },
+    {
+      "path": "cmd/serve/docker/volume_test.go",
+      "upstream_path": "cmd/serve/docker/volume_test.go",
+      "upstream_sha256": "008132f2e5adc83606463c051224cdf9771ac0209810861e31f803856a4a8f41",
+      "kind": "upstream-copy",
+      "local_sha256": "09e66464c4a629167176583cefa3d194c143aa89b592daf189e505a42f19b6f8"
     },
     {
       "path": "cmd/serve/ftp/ftp.go",
       "upstream_path": "cmd/serve/ftp/ftp.go",
-      "upstream_sha256": "eae19c7df5de37078509424f60c6ac2883a8872ed46569456c9e59a0e19cb9f1",
-      "patched_source_sha256": "eae19c7df5de37078509424f60c6ac2883a8872ed46569456c9e59a0e19cb9f1",
+      "upstream_sha256": "39a9c73d2b8e716163886c39c14eb29cb4013a5df6b5d2c39079073dd261a6be",
       "kind": "upstream-copy",
-      "local_sha256": "33a18e58d56bb3d5544846d57da786b9170378103fbc721f51536c92af982c9f"
+      "local_sha256": "352347a9de5198f28b69cba8bdf44017ae9840b657a08d9873ce6387cc0ee78a"
     },
     {
       "path": "cmd/serve/ftp/ftp_crosssession_test.go",
       "upstream_path": "cmd/serve/ftp/ftp_crosssession_test.go",
       "upstream_sha256": "ff46159dc877baaa5a620104cc635f95df8d40366bfa44cc73edf62c31b7acdc",
-      "patched_source_sha256": "ff46159dc877baaa5a620104cc635f95df8d40366bfa44cc73edf62c31b7acdc",
       "kind": "upstream-copy",
       "local_sha256": "ad756310fe2fc74dc2cb7d5a738deccb082277cd3080bb62ae93cf791e728647"
     },
     {
       "path": "cmd/serve/ftp/ftp_test.go",
       "upstream_path": "cmd/serve/ftp/ftp_test.go",
-      "upstream_sha256": "a9329658ffda99d581437fa692d489486ef9f6925af1d4bb4b6182bb9bd63f33",
-      "patched_source_sha256": "a9329658ffda99d581437fa692d489486ef9f6925af1d4bb4b6182bb9bd63f33",
+      "upstream_sha256": "a900b30a1a21c661de031d363513c6a3f5c878c87e70c49a89143a389f8f64f7",
       "kind": "upstream-copy",
-      "local_sha256": "34ce19ef19ba69b859dac4915aa28b4bf1446d44c8e2ff5059a133ca396a6f05"
+      "local_sha256": "e0a5cbd069e9824be10a36f3ddfa1247120b2309eae1877a55d9a7a976235d38"
     },
     {
       "path": "cmd/serve/ftp/ftp_unsupported.go",
       "upstream_path": "cmd/serve/ftp/ftp_unsupported.go",
       "upstream_sha256": "b3af1124b600698e7242dd46fe1961581ff09353f7a371aa0e23b4de6aef29d5",
-      "patched_source_sha256": "b3af1124b600698e7242dd46fe1961581ff09353f7a371aa0e23b4de6aef29d5",
       "kind": "upstream-copy",
       "local_sha256": "deb31ca697f9d3399fc4e35bf403c96ba81bf03fb9dfb380806ceca7f16037fd"
     },
@@ -813,7 +647,6 @@
       "path": "cmd/serve/ftp/proxy_crosssession_code.go",
       "upstream_path": "cmd/serve/ftp/proxy_crosssession_code.go",
       "upstream_sha256": "a840a48f77cfc38e1aa05291d4fecdcbbc2875cbe438a563eb73590f2cd5b72b",
-      "patched_source_sha256": "a840a48f77cfc38e1aa05291d4fecdcbbc2875cbe438a563eb73590f2cd5b72b",
       "kind": "upstream-copy",
       "local_sha256": "2289c808c59cc8afa5ea68d87868fa89c366dc815a9aaedd22a7e33d02b63b50"
     },
@@ -821,47 +654,41 @@
       "path": "cmd/serve/http/favicon.png",
       "upstream_path": "cmd/serve/http/favicon.png",
       "upstream_sha256": "0d3ece8ed67b941008d0d650141c7a818adb7bbf0cebd7582cc82f4a71bf8b4c",
-      "patched_source_sha256": "0d3ece8ed67b941008d0d650141c7a818adb7bbf0cebd7582cc82f4a71bf8b4c",
       "kind": "upstream-copy",
       "local_sha256": "0d3ece8ed67b941008d0d650141c7a818adb7bbf0cebd7582cc82f4a71bf8b4c"
     },
     {
       "path": "cmd/serve/http/http.go",
       "upstream_path": "cmd/serve/http/http.go",
-      "upstream_sha256": "be8f6940630ab4ffea76d7f7b0d04ba89d9867942ca9c57b09828aa01ed3c245",
-      "patched_source_sha256": "be8f6940630ab4ffea76d7f7b0d04ba89d9867942ca9c57b09828aa01ed3c245",
+      "upstream_sha256": "e9f541014232561b1ce03d8f1de3ff55265bc49aa1f325f106cb268209a76a84",
       "kind": "upstream-copy",
-      "local_sha256": "e80cd0193a8541fb58896ccd56ffd03ad847efff93c79b4fef049d133a30d433"
+      "local_sha256": "a4f7c7b1c7b6fa7872949e6a5ca1017fa22ad4aea69ec1708798abbbd41f8c00"
     },
     {
       "path": "cmd/serve/http/http_test.go",
       "upstream_path": "cmd/serve/http/http_test.go",
-      "upstream_sha256": "8ee4968d03ebabb0baf20f3ef502f1c25a9ef47e3d9b7035d62a0938bc6f971d",
-      "patched_source_sha256": "8ee4968d03ebabb0baf20f3ef502f1c25a9ef47e3d9b7035d62a0938bc6f971d",
+      "upstream_sha256": "a619fa24655fa69a56e6188b0f10aa9f5af9874e79534adecd4eac62680fefb8",
       "kind": "upstream-copy",
-      "local_sha256": "e5e80758dc1dd38dc7d1a9c0ba48057b24dbe7049fb4f20f66a3e3d16279c9c4"
-    },
-    {
-      "path": "cmd/serve/http/testdata/files/hidden/file.txt",
-      "upstream_path": "cmd/serve/http/testdata/files/hidden/file.txt",
-      "upstream_sha256": "6495c6f23cd502d04c56b1a0da06789cb7ca0ddbdaf714cee1296704d74bb73c",
-      "patched_source_sha256": "6495c6f23cd502d04c56b1a0da06789cb7ca0ddbdaf714cee1296704d74bb73c",
-      "kind": "upstream-copy",
-      "local_sha256": "6495c6f23cd502d04c56b1a0da06789cb7ca0ddbdaf714cee1296704d74bb73c"
+      "local_sha256": "49e2bfea15f6f2522971d516dd318a67750f4da6b6519a924656740ab2bb5781"
     },
     {
       "path": "cmd/serve/http/testdata/files/hidden.txt",
       "upstream_path": "cmd/serve/http/testdata/files/hidden.txt",
       "upstream_sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa",
-      "patched_source_sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa",
       "kind": "upstream-copy",
       "local_sha256": "e084a3683ef795d1cdbf5e9b253f2ca1f783ae0d0d6e47e419acbbc4fc80bbfa"
+    },
+    {
+      "path": "cmd/serve/http/testdata/files/hidden/file.txt",
+      "upstream_path": "cmd/serve/http/testdata/files/hidden/file.txt",
+      "upstream_sha256": "6495c6f23cd502d04c56b1a0da06789cb7ca0ddbdaf714cee1296704d74bb73c",
+      "kind": "upstream-copy",
+      "local_sha256": "6495c6f23cd502d04c56b1a0da06789cb7ca0ddbdaf714cee1296704d74bb73c"
     },
     {
       "path": "cmd/serve/http/testdata/files/one%.txt",
       "upstream_path": "cmd/serve/http/testdata/files/one%.txt",
       "upstream_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
-      "patched_source_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
       "kind": "upstream-copy",
       "local_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e"
     },
@@ -869,7 +696,6 @@
       "path": "cmd/serve/http/testdata/files/three/a.txt",
       "upstream_path": "cmd/serve/http/testdata/files/three/a.txt",
       "upstream_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776",
-      "patched_source_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776",
       "kind": "upstream-copy",
       "local_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776"
     },
@@ -877,7 +703,6 @@
       "path": "cmd/serve/http/testdata/files/three/b.txt",
       "upstream_path": "cmd/serve/http/testdata/files/three/b.txt",
       "upstream_sha256": "4fb2d03752f12f17b72c11339bdd5d7897915c4ee4b2929a0c791c7b120e23e6",
-      "patched_source_sha256": "4fb2d03752f12f17b72c11339bdd5d7897915c4ee4b2929a0c791c7b120e23e6",
       "kind": "upstream-copy",
       "local_sha256": "4fb2d03752f12f17b72c11339bdd5d7897915c4ee4b2929a0c791c7b120e23e6"
     },
@@ -885,7 +710,6 @@
       "path": "cmd/serve/http/testdata/files/two.txt",
       "upstream_path": "cmd/serve/http/testdata/files/two.txt",
       "upstream_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8",
-      "patched_source_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8",
       "kind": "upstream-copy",
       "local_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8"
     },
@@ -893,7 +717,6 @@
       "path": "cmd/serve/http/testdata/golden/a.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/a.txt",
       "upstream_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776",
-      "patched_source_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776",
       "kind": "upstream-copy",
       "local_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776"
     },
@@ -901,7 +724,6 @@
       "path": "cmd/serve/http/testdata/golden/dirnotfound.html",
       "upstream_path": "cmd/serve/http/testdata/golden/dirnotfound.html",
       "upstream_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
-      "patched_source_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
       "kind": "upstream-copy",
       "local_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b"
     },
@@ -909,7 +731,6 @@
       "path": "cmd/serve/http/testdata/golden/hidden.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/hidden.txt",
       "upstream_sha256": "19b7f2bb710b1e3a6e8e146b1e56e3fedefef4abb88eba19a52ea75197a59259",
-      "patched_source_sha256": "19b7f2bb710b1e3a6e8e146b1e56e3fedefef4abb88eba19a52ea75197a59259",
       "kind": "upstream-copy",
       "local_sha256": "19b7f2bb710b1e3a6e8e146b1e56e3fedefef4abb88eba19a52ea75197a59259"
     },
@@ -917,7 +738,6 @@
       "path": "cmd/serve/http/testdata/golden/hiddendir.html",
       "upstream_path": "cmd/serve/http/testdata/golden/hiddendir.html",
       "upstream_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
-      "patched_source_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
       "kind": "upstream-copy",
       "local_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b"
     },
@@ -925,7 +745,6 @@
       "path": "cmd/serve/http/testdata/golden/index.html",
       "upstream_path": "cmd/serve/http/testdata/golden/index.html",
       "upstream_sha256": "fa57fa7f2f3f5d898b1c8e879605d1fc6e319daee3ec575d3d4d684a17f14060",
-      "patched_source_sha256": "fa57fa7f2f3f5d898b1c8e879605d1fc6e319daee3ec575d3d4d684a17f14060",
       "kind": "upstream-copy",
       "local_sha256": "fa57fa7f2f3f5d898b1c8e879605d1fc6e319daee3ec575d3d4d684a17f14060"
     },
@@ -933,7 +752,6 @@
       "path": "cmd/serve/http/testdata/golden/indexhead.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/indexhead.txt",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -941,7 +759,6 @@
       "path": "cmd/serve/http/testdata/golden/indexpost.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/indexpost.txt",
       "upstream_sha256": "c40aa69f0b306cea296dd1193c334bc0781587ed51aab579c0433698ba9e0c4b",
-      "patched_source_sha256": "c40aa69f0b306cea296dd1193c334bc0781587ed51aab579c0433698ba9e0c4b",
       "kind": "upstream-copy",
       "local_sha256": "c40aa69f0b306cea296dd1193c334bc0781587ed51aab579c0433698ba9e0c4b"
     },
@@ -949,7 +766,6 @@
       "path": "cmd/serve/http/testdata/golden/notfound.html",
       "upstream_path": "cmd/serve/http/testdata/golden/notfound.html",
       "upstream_sha256": "19b7f2bb710b1e3a6e8e146b1e56e3fedefef4abb88eba19a52ea75197a59259",
-      "patched_source_sha256": "19b7f2bb710b1e3a6e8e146b1e56e3fedefef4abb88eba19a52ea75197a59259",
       "kind": "upstream-copy",
       "local_sha256": "19b7f2bb710b1e3a6e8e146b1e56e3fedefef4abb88eba19a52ea75197a59259"
     },
@@ -957,7 +773,6 @@
       "path": "cmd/serve/http/testdata/golden/one.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/one.txt",
       "upstream_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
-      "patched_source_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
       "kind": "upstream-copy",
       "local_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e"
     },
@@ -965,7 +780,6 @@
       "path": "cmd/serve/http/testdata/golden/onehead.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/onehead.txt",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -973,7 +787,6 @@
       "path": "cmd/serve/http/testdata/golden/onepost.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/onepost.txt",
       "upstream_sha256": "c40aa69f0b306cea296dd1193c334bc0781587ed51aab579c0433698ba9e0c4b",
-      "patched_source_sha256": "c40aa69f0b306cea296dd1193c334bc0781587ed51aab579c0433698ba9e0c4b",
       "kind": "upstream-copy",
       "local_sha256": "c40aa69f0b306cea296dd1193c334bc0781587ed51aab579c0433698ba9e0c4b"
     },
@@ -981,7 +794,6 @@
       "path": "cmd/serve/http/testdata/golden/root.zip",
       "upstream_path": "cmd/serve/http/testdata/golden/root.zip",
       "upstream_sha256": "333b1cd35e29c2ab99c2e9c0d6306949a8f0610f08a17b68a7e6716d9bb35548",
-      "patched_source_sha256": "333b1cd35e29c2ab99c2e9c0d6306949a8f0610f08a17b68a7e6716d9bb35548",
       "kind": "upstream-copy",
       "local_sha256": "333b1cd35e29c2ab99c2e9c0d6306949a8f0610f08a17b68a7e6716d9bb35548"
     },
@@ -989,7 +801,6 @@
       "path": "cmd/serve/http/testdata/golden/testindex.html",
       "upstream_path": "cmd/serve/http/testdata/golden/testindex.html",
       "upstream_sha256": "64ab1d3b874595b6f5a2c5d3358773654105195cd2631be986f1629928e11ace",
-      "patched_source_sha256": "64ab1d3b874595b6f5a2c5d3358773654105195cd2631be986f1629928e11ace",
       "kind": "upstream-copy",
       "local_sha256": "64ab1d3b874595b6f5a2c5d3358773654105195cd2631be986f1629928e11ace"
     },
@@ -997,7 +808,6 @@
       "path": "cmd/serve/http/testdata/golden/three.html",
       "upstream_path": "cmd/serve/http/testdata/golden/three.html",
       "upstream_sha256": "1a3b267a86a3791bc6a88d9973909f2a983985cb6fea9856e0a2d02cbb44f51b",
-      "patched_source_sha256": "1a3b267a86a3791bc6a88d9973909f2a983985cb6fea9856e0a2d02cbb44f51b",
       "kind": "upstream-copy",
       "local_sha256": "1a3b267a86a3791bc6a88d9973909f2a983985cb6fea9856e0a2d02cbb44f51b"
     },
@@ -1005,7 +815,6 @@
       "path": "cmd/serve/http/testdata/golden/three.zip",
       "upstream_path": "cmd/serve/http/testdata/golden/three.zip",
       "upstream_sha256": "1d92685cf4a3271c239ec753b955e435824bb8db1845dcef80b1c13f3b75bc1c",
-      "patched_source_sha256": "1d92685cf4a3271c239ec753b955e435824bb8db1845dcef80b1c13f3b75bc1c",
       "kind": "upstream-copy",
       "local_sha256": "1d92685cf4a3271c239ec753b955e435824bb8db1845dcef80b1c13f3b75bc1c"
     },
@@ -1013,7 +822,6 @@
       "path": "cmd/serve/http/testdata/golden/two-6.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/two-6.txt",
       "upstream_sha256": "5f6121bc06e18e209920d57d2f16b17cc82dfc2ade1d375d6951b99c65d1b89d",
-      "patched_source_sha256": "5f6121bc06e18e209920d57d2f16b17cc82dfc2ade1d375d6951b99c65d1b89d",
       "kind": "upstream-copy",
       "local_sha256": "5f6121bc06e18e209920d57d2f16b17cc82dfc2ade1d375d6951b99c65d1b89d"
     },
@@ -1021,7 +829,6 @@
       "path": "cmd/serve/http/testdata/golden/two.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/two.txt",
       "upstream_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8",
-      "patched_source_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8",
       "kind": "upstream-copy",
       "local_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8"
     },
@@ -1029,7 +836,6 @@
       "path": "cmd/serve/http/testdata/golden/two2-5.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/two2-5.txt",
       "upstream_sha256": "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b",
-      "patched_source_sha256": "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b",
       "kind": "upstream-copy",
       "local_sha256": "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b"
     },
@@ -1037,7 +843,6 @@
       "path": "cmd/serve/http/testdata/golden/two3-.txt",
       "upstream_path": "cmd/serve/http/testdata/golden/two3-.txt",
       "upstream_sha256": "00174b4d9ed71ce217e0431e14f4ee2760665b22bbb1c04af835f2fd86c197b1",
-      "patched_source_sha256": "00174b4d9ed71ce217e0431e14f4ee2760665b22bbb1c04af835f2fd86c197b1",
       "kind": "upstream-copy",
       "local_sha256": "00174b4d9ed71ce217e0431e14f4ee2760665b22bbb1c04af835f2fd86c197b1"
     },
@@ -1045,7 +850,6 @@
       "path": "cmd/serve/nfs/cache.go",
       "upstream_path": "cmd/serve/nfs/cache.go",
       "upstream_sha256": "eec64919f5917950d59793577b1fc4ea5a327a42e152be964430e6fd6e81aa11",
-      "patched_source_sha256": "eec64919f5917950d59793577b1fc4ea5a327a42e152be964430e6fd6e81aa11",
       "kind": "upstream-copy",
       "local_sha256": "df9021aeb0e397e146d65c89fddecb4245495d8e4db68cb601fb8e2beb7de11c"
     },
@@ -1053,7 +857,6 @@
       "path": "cmd/serve/nfs/cache_test.go",
       "upstream_path": "cmd/serve/nfs/cache_test.go",
       "upstream_sha256": "05590d2ecd17ea1670a66784c9e7f7d9e1f5dbb33be694060c6cd60c3d83989f",
-      "patched_source_sha256": "05590d2ecd17ea1670a66784c9e7f7d9e1f5dbb33be694060c6cd60c3d83989f",
       "kind": "upstream-copy",
       "local_sha256": "d307eb53a8fe6945377442f6dd06ad1cf32b0dcea490ff05818afe6793d349c1"
     },
@@ -1061,23 +864,20 @@
       "path": "cmd/serve/nfs/filesystem.go",
       "upstream_path": "cmd/serve/nfs/filesystem.go",
       "upstream_sha256": "8bba566b658975a23af4ca8c16e957d8241fd3f5b4a3baba268ba11eb1b83651",
-      "patched_source_sha256": "8bba566b658975a23af4ca8c16e957d8241fd3f5b4a3baba268ba11eb1b83651",
       "kind": "upstream-copy",
       "local_sha256": "9229e9fa02f3d4f71597741d2246a75d087460e145c68c690adc9436a46a8107"
     },
     {
       "path": "cmd/serve/nfs/filesystem_test.go",
       "upstream_path": "cmd/serve/nfs/filesystem_test.go",
-      "upstream_sha256": "aeead40d06dc3a5aa620c0a81fb8d9edfd2c4d239b0cf95d7daee5113cfd2186",
-      "patched_source_sha256": "aeead40d06dc3a5aa620c0a81fb8d9edfd2c4d239b0cf95d7daee5113cfd2186",
+      "upstream_sha256": "fb6b906a4e5c1d19558d52de87522ef5ed7ccfc3bfbb6c16fc516b09bb7aff8a",
       "kind": "upstream-copy",
-      "local_sha256": "e71917f5907875503fc6b6d2267a9e139498588cc504515bf08d6771e5481729"
+      "local_sha256": "8835b9a5bda89b8a472b783e1791d1cc8b8f4c846f3ebb6a1d70afee59b2cb35"
     },
     {
       "path": "cmd/serve/nfs/handler.go",
       "upstream_path": "cmd/serve/nfs/handler.go",
       "upstream_sha256": "ae1a57d657316b908c5c0d6dbecc8be2c0323bde835d39254bef4b88286218b6",
-      "patched_source_sha256": "ae1a57d657316b908c5c0d6dbecc8be2c0323bde835d39254bef4b88286218b6",
       "kind": "upstream-copy",
       "local_sha256": "ae82ac2ba13b8b7b2c0ae58f1ecbaee6b8ce5bb8bf185d2e0f889159e0e6dd64"
     },
@@ -1085,7 +885,6 @@
       "path": "cmd/serve/nfs/handler_test.go",
       "upstream_path": "cmd/serve/nfs/handler_test.go",
       "upstream_sha256": "8d0d25553a0efefe2e078a5021c70fc5cd2364fd9e9e4361336995b4670e1669",
-      "patched_source_sha256": "8d0d25553a0efefe2e078a5021c70fc5cd2364fd9e9e4361336995b4670e1669",
       "kind": "upstream-copy",
       "local_sha256": "ef9957ae808202a9d97ce6e43bf66e2ddc2fe81b53e420d06209736fba93817a"
     },
@@ -1093,7 +892,6 @@
       "path": "cmd/serve/nfs/nfs.go",
       "upstream_path": "cmd/serve/nfs/nfs.go",
       "upstream_sha256": "c51f79452e9f44f5243deac15a061483d1f7eb53d419c7fab2c44a2f34cf2ad3",
-      "patched_source_sha256": "c51f79452e9f44f5243deac15a061483d1f7eb53d419c7fab2c44a2f34cf2ad3",
       "kind": "upstream-copy",
       "local_sha256": "5cc1c0e9d745c5fbd85d322ae910237770ff4efa6ecf9d7f2cec589b6239840c"
     },
@@ -1101,7 +899,6 @@
       "path": "cmd/serve/nfs/nfs_test.go",
       "upstream_path": "cmd/serve/nfs/nfs_test.go",
       "upstream_sha256": "cb1c810d7c9049d80706b1c73bdbd4661605c7a7bad8e4f5100c89715325ff26",
-      "patched_source_sha256": "cb1c810d7c9049d80706b1c73bdbd4661605c7a7bad8e4f5100c89715325ff26",
       "kind": "upstream-copy",
       "local_sha256": "eb06ada757b74b7d03465ad3dde4dc1ada3da8e34de265ebb2edb5be332144ea"
     },
@@ -1109,7 +906,6 @@
       "path": "cmd/serve/nfs/nfs_unsupported.go",
       "upstream_path": "cmd/serve/nfs/nfs_unsupported.go",
       "upstream_sha256": "a8f9b594d62b1a9351b514312caf953b67262df25a262e6ee56bb054841c57b0",
-      "patched_source_sha256": "a8f9b594d62b1a9351b514312caf953b67262df25a262e6ee56bb054841c57b0",
       "kind": "upstream-copy",
       "local_sha256": "1390d5a8490fec5762a80169436568452349cdd579ce11826a3db2c06e4e3cd9"
     },
@@ -1117,7 +913,6 @@
       "path": "cmd/serve/nfs/server.go",
       "upstream_path": "cmd/serve/nfs/server.go",
       "upstream_sha256": "995f33a55b5caa80438885e84719ace6c608598e67ce9c6cfc87e4955ca2ec30",
-      "patched_source_sha256": "995f33a55b5caa80438885e84719ace6c608598e67ce9c6cfc87e4955ca2ec30",
       "kind": "upstream-copy",
       "local_sha256": "ca0a46d347fd232fed8be192e26c9aa35d00331c90a8dfbf89133bfd8dc0bbf5"
     },
@@ -1125,7 +920,6 @@
       "path": "cmd/serve/nfs/symlink_cache_linux.go",
       "upstream_path": "cmd/serve/nfs/symlink_cache_linux.go",
       "upstream_sha256": "561e7eb99aa830afabb07eae3cdbac9378947d1621e0bfa208dc8a13b68b1cd4",
-      "patched_source_sha256": "561e7eb99aa830afabb07eae3cdbac9378947d1621e0bfa208dc8a13b68b1cd4",
       "kind": "upstream-copy",
       "local_sha256": "6c7f2e6b21b94218e2497b3a87bca545dfd7c39ceeff00bc1c703c1b176da35d"
     },
@@ -1133,159 +927,132 @@
       "path": "cmd/serve/nfs/symlink_cache_other.go",
       "upstream_path": "cmd/serve/nfs/symlink_cache_other.go",
       "upstream_sha256": "90c635f902444b7a64a495d64cc1ff8eb5467f6d8e518bc4327b8a80752393e9",
-      "patched_source_sha256": "90c635f902444b7a64a495d64cc1ff8eb5467f6d8e518bc4327b8a80752393e9",
       "kind": "upstream-copy",
       "local_sha256": "640ec74ffb109bb8af39e7647455967d0d9d94c2a39e427628d9a8ee0e2d9053"
     },
     {
       "path": "cmd/serve/proxy/proxy.go",
       "upstream_path": "cmd/serve/proxy/proxy.go",
-      "upstream_sha256": "c795567a98392f32c99d65a360bf1fadf0d6be597ffe6a0fa35122bee7d187c4",
-      "patched_source_sha256": "c795567a98392f32c99d65a360bf1fadf0d6be597ffe6a0fa35122bee7d187c4",
+      "upstream_sha256": "cbd77e60db2b0293e9a7aaabc9dba97d311bf9f7ef9292ec217b0ab67532f712",
       "kind": "upstream-copy",
-      "local_sha256": "e06d36cbd9ad63ef3cbb2ac46b0c4e425f2b8ff7181894337af286104d5c1bdc"
+      "local_sha256": "a5fab8ea45495f9c67e269332244de37b3c7f2b261d5aa57b9f54e220292686a"
     },
     {
       "path": "cmd/serve/proxy/proxy_code.go",
       "upstream_path": "cmd/serve/proxy/proxy_code.go",
-      "upstream_sha256": "a40929534eeb786db1008e87904774b572eb739ae6771f98f65f16d946bddfcc",
-      "patched_source_sha256": "a40929534eeb786db1008e87904774b572eb739ae6771f98f65f16d946bddfcc",
+      "upstream_sha256": "dde97de36a382c55d95519e300990792f45afea863cb447ece169e7cddce2d99",
       "kind": "upstream-copy",
-      "local_sha256": "e4cea822bc8b194411ce87be66299e33e06603092f62a83c171667fec491eadb"
+      "local_sha256": "459923574168df000c9ae08798ca1e1763e90f9bf2219fd41fc52dc0a7c71eae"
     },
     {
       "path": "cmd/serve/proxy/proxy_test.go",
       "upstream_path": "cmd/serve/proxy/proxy_test.go",
-      "upstream_sha256": "e02270ca924479062540441563a07fb5c88618c1bdf7fdefada7fd5c33043eef",
-      "patched_source_sha256": "e02270ca924479062540441563a07fb5c88618c1bdf7fdefada7fd5c33043eef",
+      "upstream_sha256": "249248028790374f1c019b84eec6f14832177438acb28def7f0b26a3e2a90cdc",
       "kind": "upstream-copy",
-      "local_sha256": "fd81fc83fdb43a68e99ff969b5619caf732273e0273958dc300e0a1e95a98b17"
+      "local_sha256": "5a949ec1f2b110e82c06586337db078be41c70d2c87a4dfd17f7a10d3a163970"
     },
     {
       "path": "cmd/serve/proxy/proxyflags/proxyflags.go",
       "upstream_path": "cmd/serve/proxy/proxyflags/proxyflags.go",
       "upstream_sha256": "38e3d42a240745fe7fd68204a73e35a11a44ed232d68937663d7370955d6674f",
-      "patched_source_sha256": "38e3d42a240745fe7fd68204a73e35a11a44ed232d68937663d7370955d6674f",
       "kind": "upstream-copy",
       "local_sha256": "dee0baa424949654d36d161fd28b6d71f909d1b7098251c9310897d2d599e9d4"
     },
     {
       "path": "cmd/serve/s3/backend.go",
       "upstream_path": "cmd/serve/s3/backend.go",
-      "upstream_sha256": "a5bcde4d049c72cf10d93eeb77ab7d9dd6bd85d535df9455e55d6566c5f59c6f",
-      "patched_source_sha256": "a5bcde4d049c72cf10d93eeb77ab7d9dd6bd85d535df9455e55d6566c5f59c6f",
+      "upstream_sha256": "aa99f5f49f0aba18c0ff97b78247079abf7a67cc078e40aff481c782801b1cd0",
       "kind": "upstream-copy",
-      "local_sha256": "abfd949294171cd0d72e38f60914f80508ac20ffda787c7fdffa42aba27696a6"
+      "local_sha256": "3c4c7f259883eaddd0556fb3b3340c7027e745de42bdc7d8d089dd2e6f68daa6"
     },
     {
       "path": "cmd/serve/s3/backend_test.go",
       "upstream_path": "cmd/serve/s3/backend_test.go",
-      "upstream_sha256": "bf657979b731ce0cd919ee482a5b34c54854959feac06f968d9eb53c7ad8a6c4",
-      "patched_source_sha256": "bf657979b731ce0cd919ee482a5b34c54854959feac06f968d9eb53c7ad8a6c4",
+      "upstream_sha256": "d3a7f6adb285af295a712bd37004350aa4475defd87e749364e8dd80017eee8b",
       "kind": "upstream-copy",
-      "local_sha256": "258de4562ea777be55cb590054b1192f94c5ec94fec8b590828c15a8e267e6a8"
+      "local_sha256": "6f094129ff40a307cb0eb8d12066c1ce7d4376338be1c76d5e9a3e4e4d46660a"
     },
     {
       "path": "cmd/serve/s3/ioutils.go",
       "upstream_path": "cmd/serve/s3/ioutils.go",
       "upstream_sha256": "249d1cd61518e27aab35a68ffecea20ffd706f89ed78bc63fbcf48b7806f4d8e",
-      "patched_source_sha256": "249d1cd61518e27aab35a68ffecea20ffd706f89ed78bc63fbcf48b7806f4d8e",
       "kind": "upstream-copy",
       "local_sha256": "2f8093c157dc83d34c57dfbe8ed75b1690c90e8f1e0dfa776fde7c11d8a1f940"
     },
     {
       "path": "cmd/serve/s3/list.go",
       "upstream_path": "cmd/serve/s3/list.go",
-      "upstream_sha256": "846ec66a5e437d1c95345e8b97c7c089d87e91cc59e372bfb57ada53b4dd8a06",
-      "patched_source_sha256": "846ec66a5e437d1c95345e8b97c7c089d87e91cc59e372bfb57ada53b4dd8a06",
+      "upstream_sha256": "f1e848a1dfe6ed86b1094cfbcbc61e5cc205225497da325cfdfccb50a3b97ad6",
       "kind": "upstream-copy",
-      "local_sha256": "717e39ed74d3e0167f2fac99b19e81967e76740361620e428343bbf7baac5715"
+      "local_sha256": "fc7057e2a69f8f2d91bfd55d057739417d279dda29af2a2bb27199b2162e42d6"
+    },
+    {
+      "path": "cmd/serve/s3/list_test.go",
+      "upstream_path": "cmd/serve/s3/list_test.go",
+      "upstream_sha256": "dcfa5df8fb3c6cebd279ca546c7286e2d266f1ea6fb93efcf319c84243247864",
+      "kind": "upstream-copy",
+      "local_sha256": "163ab78091ff49fbcf0a48a8f5629f3a579771095162812b4f4f13695050dfdb"
     },
     {
       "path": "cmd/serve/s3/logger.go",
       "upstream_path": "cmd/serve/s3/logger.go",
-      "upstream_sha256": "f752935f50404f9f2f2fc7e92cc2d0d5d059c30dfea32db41f6855739ec11e3e",
-      "patched_source_sha256": "f752935f50404f9f2f2fc7e92cc2d0d5d059c30dfea32db41f6855739ec11e3e",
+      "upstream_sha256": "d3beb305aa47e3acbd11ee85d338ae94679123b2ba2e63d5babdeeef64ce06ef",
       "kind": "upstream-copy",
-      "local_sha256": "accdb9eb0fce9b0acd91b679a7502cd7f06cabf836126616e6b76209dce8a4db"
+      "local_sha256": "6e83478735d72d266f21a9fa3b84a45e06938f3c1b8fd8e0de4d0e3b714e3bf7"
     },
     {
       "path": "cmd/serve/s3/multipart.go",
       "upstream_path": "cmd/serve/s3/multipart.go",
-      "upstream_sha256": "113bcab6a091948fc3b7145325c38f347ec6345ccddea4ee82fe195af45b156d",
-      "patched_source_sha256": "113bcab6a091948fc3b7145325c38f347ec6345ccddea4ee82fe195af45b156d",
+      "upstream_sha256": "f3b57b84208036915a60ffd6084ec436fca78a1f0ff95890c8ddfe842b0792a7",
       "kind": "upstream-copy",
-      "local_sha256": "6dd139fb1c95027c3a2ce9403003f4563bfb53d35f8f91cbf66bd9da573df21f"
+      "local_sha256": "9234a28d797dbde118ae886ce972329a1c275dd5318c6162dabeb7ed9c083bd3"
     },
     {
       "path": "cmd/serve/s3/multipart_test.go",
       "upstream_path": "cmd/serve/s3/multipart_test.go",
-      "upstream_sha256": "81f722e2b04d670ddbe1ea3c4127f2565e1d50cce3dc46cb33e21cf9001a7c14",
-      "patched_source_sha256": "81f722e2b04d670ddbe1ea3c4127f2565e1d50cce3dc46cb33e21cf9001a7c14",
+      "upstream_sha256": "886af1ed3e2db450402c27b3fed3b193a80e84f35fdcb87c284cff2bf19db420",
       "kind": "upstream-copy",
-      "local_sha256": "476ab470ceb5f19aedaf741b362877409d49ff0f1d3a4a8a394cdd7cd7e84991"
-    },
-    {
-      "path": "cmd/serve/s3/pager.go",
-      "upstream_path": "cmd/serve/s3/pager.go",
-      "upstream_sha256": "b0c8be0152760c30cd641b2ff0ca2a5bef9eb5b5200a8effe890d04f068e4654",
-      "patched_source_sha256": "b0c8be0152760c30cd641b2ff0ca2a5bef9eb5b5200a8effe890d04f068e4654",
-      "kind": "upstream-copy",
-      "local_sha256": "2e3d9c4686c228aa5ae7c1b400803cbcb468d74a6cf52cd15b78e4b09c5ff41f"
-    },
-    {
-      "path": "cmd/serve/s3/pager_test.go",
-      "upstream_path": "cmd/serve/s3/pager_test.go",
-      "upstream_sha256": "ce698a03ed47914093fe12a2034232923b85f0582ad249eb69ef7c4134495794",
-      "patched_source_sha256": "ce698a03ed47914093fe12a2034232923b85f0582ad249eb69ef7c4134495794",
-      "kind": "upstream-copy",
-      "local_sha256": "714ec1d3b64f83d5436a458687f1ab7baa58f4cc5d8822a5e438a07a26c30c14"
+      "local_sha256": "c1a4bb45a3e77d80170c24f894adbdb62f707f8c5d820ae110ec9f743d8f67ef"
     },
     {
       "path": "cmd/serve/s3/put_test.go",
       "upstream_path": "cmd/serve/s3/put_test.go",
-      "upstream_sha256": "c65344c5fc7afbaf921ce3d2cfdbf53a3fde218cdab4953007b91215ae5b638c",
-      "patched_source_sha256": "c65344c5fc7afbaf921ce3d2cfdbf53a3fde218cdab4953007b91215ae5b638c",
+      "upstream_sha256": "afc5d310ef72dd77717eb7b435e27da3941147f8e8ff86305fa7986c984f48c7",
       "kind": "upstream-copy",
-      "local_sha256": "f88c3c10fac422c4023a322c933f22b5f380f732ec221edceb4ab243e7ed092d"
+      "local_sha256": "f75b349169c989cc6c96b91e57624b3ee86fa56e4ee80852c667b39d0b15fe0b"
     },
     {
       "path": "cmd/serve/s3/s3.go",
       "upstream_path": "cmd/serve/s3/s3.go",
-      "upstream_sha256": "148e435350d0203a2f87875546cf76c87af7aa03ad588fa33da1c3b68f091b56",
-      "patched_source_sha256": "148e435350d0203a2f87875546cf76c87af7aa03ad588fa33da1c3b68f091b56",
+      "upstream_sha256": "b1175f8541cc16ced035a68ee8fc2093c9e7a5d497449951cfe62b1bacb35a00",
       "kind": "upstream-copy",
-      "local_sha256": "d3b7eba5c2b44cb561fd3c76c756e4f9d0c774e8357d51ffe39020b83ecc3495"
+      "local_sha256": "f951e1742b8f0e214c72754c21a263e321394bfdcfa043bf93df1ee924ba327a"
     },
     {
       "path": "cmd/serve/s3/s3_test.go",
       "upstream_path": "cmd/serve/s3/s3_test.go",
-      "upstream_sha256": "b6419d98c4406dcf3d38bd8a8dc919a19a4209ff4593288159f9efe03f46124f",
-      "patched_source_sha256": "b6419d98c4406dcf3d38bd8a8dc919a19a4209ff4593288159f9efe03f46124f",
+      "upstream_sha256": "a2d54f811f7fd82797ed75883256fd8fcb378dcf7286c484ea7b06c0d70391f0",
       "kind": "upstream-copy",
-      "local_sha256": "a606456879ced95f412a1558cb71de7be60340d6109fae231097aa1f81157ce7"
+      "local_sha256": "1d130b619800edab37984833a70ebcbd1bccc34d2920698014dbf460fcee0cc1"
     },
     {
       "path": "cmd/serve/s3/serve_s3.md",
       "upstream_path": "cmd/serve/s3/serve_s3.md",
-      "upstream_sha256": "05158669c14ec1cbb2ffdf5448842f250830b3ed3545405bc9ae3f17f0775ef7",
-      "patched_source_sha256": "05158669c14ec1cbb2ffdf5448842f250830b3ed3545405bc9ae3f17f0775ef7",
+      "upstream_sha256": "ea766b8759c3ede180cd60b546f41e310ef76ef14c38bec42541be93cd2fa5c7",
       "kind": "upstream-copy",
-      "local_sha256": "05158669c14ec1cbb2ffdf5448842f250830b3ed3545405bc9ae3f17f0775ef7"
+      "local_sha256": "ea766b8759c3ede180cd60b546f41e310ef76ef14c38bec42541be93cd2fa5c7"
     },
     {
       "path": "cmd/serve/s3/server.go",
       "upstream_path": "cmd/serve/s3/server.go",
-      "upstream_sha256": "3902a05878fcd9561fb180d30ecfbdacaad33b3a1425a1beb799069843e0ed11",
-      "patched_source_sha256": "3902a05878fcd9561fb180d30ecfbdacaad33b3a1425a1beb799069843e0ed11",
+      "upstream_sha256": "ad42e4fb1e2268b4ec90d464d061361bcdf3a80d8018e34879bfbd9517d00f89",
       "kind": "upstream-copy",
-      "local_sha256": "84e1588517bcdeb2374457b3582aed8b2b6e64221be559a8af279db03468b375"
+      "local_sha256": "9241a1332daec4ae4c066a50e6e06685855751da7d24f7c595f8e7f18bf622b4"
     },
     {
       "path": "cmd/serve/s3/testdata/mybucket/foo/bar.txt",
       "upstream_path": "cmd/serve/s3/testdata/mybucket/foo/bar.txt",
       "upstream_sha256": "af67db7a86ab5bb3ab3ac10e0dd6f3ef97293c67ba25c952dc14036c3f6e3e14",
-      "patched_source_sha256": "af67db7a86ab5bb3ab3ac10e0dd6f3ef97293c67ba25c952dc14036c3f6e3e14",
       "kind": "upstream-copy",
       "local_sha256": "af67db7a86ab5bb3ab3ac10e0dd6f3ef97293c67ba25c952dc14036c3f6e3e14"
     },
@@ -1293,7 +1060,6 @@
       "path": "cmd/serve/s3/testdata/mybucket/lorem.txt",
       "upstream_path": "cmd/serve/s3/testdata/mybucket/lorem.txt",
       "upstream_sha256": "1a5f7ebd64b32ac9aa29a8c23b28c34d809b04fb1ad2619860dc28a77f782872",
-      "patched_source_sha256": "1a5f7ebd64b32ac9aa29a8c23b28c34d809b04fb1ad2619860dc28a77f782872",
       "kind": "upstream-copy",
       "local_sha256": "1a5f7ebd64b32ac9aa29a8c23b28c34d809b04fb1ad2619860dc28a77f782872"
     },
@@ -1301,7 +1067,6 @@
       "path": "cmd/serve/s3/utils.go",
       "upstream_path": "cmd/serve/s3/utils.go",
       "upstream_sha256": "a33bd21e39391ab750cbe40b04806c6b413963ed3ffebb73ea267477a94f4bfc",
-      "patched_source_sha256": "a33bd21e39391ab750cbe40b04806c6b413963ed3ffebb73ea267477a94f4bfc",
       "kind": "upstream-copy",
       "local_sha256": "79c53b839ef587126fd9c0a8cb53b4b8e6041c82cd21909df9dbd4aa37d9c0eb"
     },
@@ -1309,31 +1074,27 @@
       "path": "cmd/serve/s3/writeback_test.go",
       "upstream_path": "cmd/serve/s3/writeback_test.go",
       "upstream_sha256": "7a6d18e4a1b463ef07a51b993f944288c49bdee8e52e4f036a629a80cf9da0eb",
-      "patched_source_sha256": "7a6d18e4a1b463ef07a51b993f944288c49bdee8e52e4f036a629a80cf9da0eb",
       "kind": "upstream-copy",
       "local_sha256": "325930580585e1cf6e3801ca8bcd6429ada0ed4ea91b59bb9f633ab178953dd1"
     },
     {
       "path": "cmd/serve/servetest/proxy_code.go",
       "upstream_path": "cmd/serve/servetest/proxy_code.go",
-      "upstream_sha256": "e3880616cda5f1b9274365251c51d638a75258b69721195152e300095cfc5866",
-      "patched_source_sha256": "e3880616cda5f1b9274365251c51d638a75258b69721195152e300095cfc5866",
+      "upstream_sha256": "432c644cf55f8ff4cfb271718cc2d4abfb79fcc23d0c87a269a417e7660e15b4",
       "kind": "upstream-copy",
-      "local_sha256": "76a337896a54eedf1a680bcc277f430b83644ec9c3d9dc22100ac5a2ae6cbcaf"
+      "local_sha256": "75a4f2b8eb3ce62f06195b0eea7f6b437ca73954137267c05bbdd2ddc5dd0152"
     },
     {
       "path": "cmd/serve/servetest/rc.go",
       "upstream_path": "cmd/serve/servetest/rc.go",
-      "upstream_sha256": "cefb3e4dea7b541e7475f996bbe92172010b0ad1740c6861a4e8b2ddae49d591",
-      "patched_source_sha256": "cefb3e4dea7b541e7475f996bbe92172010b0ad1740c6861a4e8b2ddae49d591",
+      "upstream_sha256": "a0cf6ab50d77f10cf795acc922bfd767164d12cf2ea05728beff6ed814ce5d6a",
       "kind": "upstream-copy",
-      "local_sha256": "f3c7fcf7c4ba9f0b81f46574f1e471eeacc9d801313b6d9451431f3e46b02330"
+      "local_sha256": "8c84d90cf08654ba6a561f4e1aee1ca7f2aad8898c9f0efa69a51eed29b5a4f8"
     },
     {
       "path": "cmd/serve/servetest/servetest.go",
       "upstream_path": "cmd/serve/servetest/servetest.go",
       "upstream_sha256": "b9a1e82cd3fcd4dcf9ec8fc3a39327b1870ecbf0d292a49e897ecc0dcdaded44",
-      "patched_source_sha256": "b9a1e82cd3fcd4dcf9ec8fc3a39327b1870ecbf0d292a49e897ecc0dcdaded44",
       "kind": "upstream-copy",
       "local_sha256": "c2ec49f57b6c68f62ef254e1c5dd291a69049f4536d9cfacadf085ca49b7bdac"
     },
@@ -1341,7 +1102,6 @@
       "path": "cmd/serve/sftp/connection.go",
       "upstream_path": "cmd/serve/sftp/connection.go",
       "upstream_sha256": "562dddb4772fce8385fb31053fc372a9983ebdfa061e742da6ddd075678e16e6",
-      "patched_source_sha256": "562dddb4772fce8385fb31053fc372a9983ebdfa061e742da6ddd075678e16e6",
       "kind": "upstream-copy",
       "local_sha256": "c4a763b2a4766a4cf88f820ad4419b768f7bf884322b88809fe83e1366352089"
     },
@@ -1349,7 +1109,6 @@
       "path": "cmd/serve/sftp/connection_test.go",
       "upstream_path": "cmd/serve/sftp/connection_test.go",
       "upstream_sha256": "b1db60ba63bddbc300badd8410d915ba0e853b6437dde13f7aaa382a3f4939e5",
-      "patched_source_sha256": "b1db60ba63bddbc300badd8410d915ba0e853b6437dde13f7aaa382a3f4939e5",
       "kind": "upstream-copy",
       "local_sha256": "77be90feb4ddb35c04ebbea1711b5320277c8d2cec5450190ba53117de3a08d0"
     },
@@ -1357,7 +1116,6 @@
       "path": "cmd/serve/sftp/handler.go",
       "upstream_path": "cmd/serve/sftp/handler.go",
       "upstream_sha256": "cc1a0abcd6a0a5d562905ba1c884b41f85ba018bbaaf71a44d12252fd1023208",
-      "patched_source_sha256": "cc1a0abcd6a0a5d562905ba1c884b41f85ba018bbaaf71a44d12252fd1023208",
       "kind": "upstream-copy",
       "local_sha256": "29ea4bde3b780081ab8e4e6c521e89712043795c2ddfddcf89371816caf75b85"
     },
@@ -1365,7 +1123,6 @@
       "path": "cmd/serve/sftp/handler_test.go",
       "upstream_path": "cmd/serve/sftp/handler_test.go",
       "upstream_sha256": "7dcfea2697a95faa0658f11d65dd0c9c68fe3ee7783c40e4e02030e96d56cd58",
-      "patched_source_sha256": "7dcfea2697a95faa0658f11d65dd0c9c68fe3ee7783c40e4e02030e96d56cd58",
       "kind": "upstream-copy",
       "local_sha256": "9f0ebad034eca9fc4cb8428f28a80d66ad90ad1ef8fe6774d6523c90ec8b8c8a"
     },
@@ -1373,7 +1130,6 @@
       "path": "cmd/serve/sftp/server.go",
       "upstream_path": "cmd/serve/sftp/server.go",
       "upstream_sha256": "454d3b2ffdf03370106ed110e165cbf8b82f036085515cf0666fc9c71b87549d",
-      "patched_source_sha256": "454d3b2ffdf03370106ed110e165cbf8b82f036085515cf0666fc9c71b87549d",
       "kind": "upstream-copy",
       "local_sha256": "edb0dfcfee6c44886e11098037f5d3c9655e085a32357003a0513c0668947125"
     },
@@ -1381,7 +1137,6 @@
       "path": "cmd/serve/sftp/sftp.go",
       "upstream_path": "cmd/serve/sftp/sftp.go",
       "upstream_sha256": "0abdfe2868125e7005dffd10faa8e93abb4d6acb767979fa8b3bc23b2cb64695",
-      "patched_source_sha256": "0abdfe2868125e7005dffd10faa8e93abb4d6acb767979fa8b3bc23b2cb64695",
       "kind": "upstream-copy",
       "local_sha256": "b604c0b089dba06010d51809e2dd8e19457160e48a0aa423baec438e95f2f30f"
     },
@@ -1389,7 +1144,6 @@
       "path": "cmd/serve/sftp/sftp_test.go",
       "upstream_path": "cmd/serve/sftp/sftp_test.go",
       "upstream_sha256": "e5c0be3254f7fd96cd1d85758efe3b6b29050eb1898cc5c142c022c790e1c481",
-      "patched_source_sha256": "e5c0be3254f7fd96cd1d85758efe3b6b29050eb1898cc5c142c022c790e1c481",
       "kind": "upstream-copy",
       "local_sha256": "690e5b5c367bf2318239919cbc881e36d624eeecb548a80e5562ffa8b99498fc"
     },
@@ -1397,7 +1151,6 @@
       "path": "cmd/serve/sftp/sftp_unsupported.go",
       "upstream_path": "cmd/serve/sftp/sftp_unsupported.go",
       "upstream_sha256": "b68eac50482246be953190799507e0ba1faf13f3cfeb1d2bed8a7c0c9468326e",
-      "patched_source_sha256": "b68eac50482246be953190799507e0ba1faf13f3cfeb1d2bed8a7c0c9468326e",
       "kind": "upstream-copy",
       "local_sha256": "f74a1b7204983e220c2fb69c246b01591fe68d7b76577d793a52a325c12470db"
     },
@@ -1405,7 +1158,6 @@
       "path": "cmd/serve/webdav/testdata/golden/a.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/a.txt",
       "upstream_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776",
-      "patched_source_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776",
       "kind": "upstream-copy",
       "local_sha256": "f6936912184481f5edd4c304ce27c5a1a827804fc7f329f43d273b8621870776"
     },
@@ -1413,7 +1165,6 @@
       "path": "cmd/serve/webdav/testdata/golden/dirnotfound.html",
       "upstream_path": "cmd/serve/webdav/testdata/golden/dirnotfound.html",
       "upstream_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
-      "patched_source_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
       "kind": "upstream-copy",
       "local_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b"
     },
@@ -1421,7 +1172,6 @@
       "path": "cmd/serve/webdav/testdata/golden/hidden.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/hidden.txt",
       "upstream_sha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
-      "patched_source_sha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
       "kind": "upstream-copy",
       "local_sha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
     },
@@ -1429,7 +1179,6 @@
       "path": "cmd/serve/webdav/testdata/golden/hiddendir.html",
       "upstream_path": "cmd/serve/webdav/testdata/golden/hiddendir.html",
       "upstream_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
-      "patched_source_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b",
       "kind": "upstream-copy",
       "local_sha256": "3c4702ebc7fa2cf22201fcd9324c699635fd7701e3e4ae37197fc9a7586adb0b"
     },
@@ -1437,7 +1186,6 @@
       "path": "cmd/serve/webdav/testdata/golden/index.html",
       "upstream_path": "cmd/serve/webdav/testdata/golden/index.html",
       "upstream_sha256": "fa57fa7f2f3f5d898b1c8e879605d1fc6e319daee3ec575d3d4d684a17f14060",
-      "patched_source_sha256": "fa57fa7f2f3f5d898b1c8e879605d1fc6e319daee3ec575d3d4d684a17f14060",
       "kind": "upstream-copy",
       "local_sha256": "fa57fa7f2f3f5d898b1c8e879605d1fc6e319daee3ec575d3d4d684a17f14060"
     },
@@ -1445,7 +1193,6 @@
       "path": "cmd/serve/webdav/testdata/golden/indexhead.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/indexhead.txt",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -1453,7 +1200,6 @@
       "path": "cmd/serve/webdav/testdata/golden/indexpost.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/indexpost.txt",
       "upstream_sha256": "e3933184560739b70b60e2d0e48a6c7d7e18f76d95362e11f4155267700ac3a7",
-      "patched_source_sha256": "e3933184560739b70b60e2d0e48a6c7d7e18f76d95362e11f4155267700ac3a7",
       "kind": "upstream-copy",
       "local_sha256": "e3933184560739b70b60e2d0e48a6c7d7e18f76d95362e11f4155267700ac3a7"
     },
@@ -1461,7 +1207,6 @@
       "path": "cmd/serve/webdav/testdata/golden/notfound.html",
       "upstream_path": "cmd/serve/webdav/testdata/golden/notfound.html",
       "upstream_sha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
-      "patched_source_sha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5",
       "kind": "upstream-copy",
       "local_sha256": "0019dfc4b32d63c1392aa264aed2253c1e0c2fb09216f8e2cc269bbfb8bb49b5"
     },
@@ -1469,7 +1214,6 @@
       "path": "cmd/serve/webdav/testdata/golden/one.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/one.txt",
       "upstream_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
-      "patched_source_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
       "kind": "upstream-copy",
       "local_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e"
     },
@@ -1477,7 +1221,6 @@
       "path": "cmd/serve/webdav/testdata/golden/onehead.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/onehead.txt",
       "upstream_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-      "patched_source_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
       "kind": "upstream-copy",
       "local_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
     },
@@ -1485,7 +1228,6 @@
       "path": "cmd/serve/webdav/testdata/golden/onepost.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/onepost.txt",
       "upstream_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
-      "patched_source_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e",
       "kind": "upstream-copy",
       "local_sha256": "1cd63024c0deacb38afb7bfbd3e2e5580d2647002a394145cfd00307b7bc8c1e"
     },
@@ -1493,7 +1235,6 @@
       "path": "cmd/serve/webdav/testdata/golden/three.html",
       "upstream_path": "cmd/serve/webdav/testdata/golden/three.html",
       "upstream_sha256": "1a3b267a86a3791bc6a88d9973909f2a983985cb6fea9856e0a2d02cbb44f51b",
-      "patched_source_sha256": "1a3b267a86a3791bc6a88d9973909f2a983985cb6fea9856e0a2d02cbb44f51b",
       "kind": "upstream-copy",
       "local_sha256": "1a3b267a86a3791bc6a88d9973909f2a983985cb6fea9856e0a2d02cbb44f51b"
     },
@@ -1501,7 +1242,6 @@
       "path": "cmd/serve/webdav/testdata/golden/two-6.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/two-6.txt",
       "upstream_sha256": "5f6121bc06e18e209920d57d2f16b17cc82dfc2ade1d375d6951b99c65d1b89d",
-      "patched_source_sha256": "5f6121bc06e18e209920d57d2f16b17cc82dfc2ade1d375d6951b99c65d1b89d",
       "kind": "upstream-copy",
       "local_sha256": "5f6121bc06e18e209920d57d2f16b17cc82dfc2ade1d375d6951b99c65d1b89d"
     },
@@ -1509,7 +1249,6 @@
       "path": "cmd/serve/webdav/testdata/golden/two.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/two.txt",
       "upstream_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8",
-      "patched_source_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8",
       "kind": "upstream-copy",
       "local_sha256": "c67c199595622dfbdc9e415c4a0ad6166eb49cbf74c6aac7bb3e958604d5ecb8"
     },
@@ -1517,7 +1256,6 @@
       "path": "cmd/serve/webdav/testdata/golden/two2-5.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/two2-5.txt",
       "upstream_sha256": "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b",
-      "patched_source_sha256": "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b",
       "kind": "upstream-copy",
       "local_sha256": "38083c7ee9121e17401883566a148aa5c2e2d55dc53bc4a94a026517dbff3c6b"
     },
@@ -1525,39 +1263,111 @@
       "path": "cmd/serve/webdav/testdata/golden/two3-.txt",
       "upstream_path": "cmd/serve/webdav/testdata/golden/two3-.txt",
       "upstream_sha256": "00174b4d9ed71ce217e0431e14f4ee2760665b22bbb1c04af835f2fd86c197b1",
-      "patched_source_sha256": "00174b4d9ed71ce217e0431e14f4ee2760665b22bbb1c04af835f2fd86c197b1",
       "kind": "upstream-copy",
       "local_sha256": "00174b4d9ed71ce217e0431e14f4ee2760665b22bbb1c04af835f2fd86c197b1"
     },
     {
       "path": "cmd/serve/webdav/webdav.go",
       "upstream_path": "cmd/serve/webdav/webdav.go",
-      "upstream_sha256": "24bac7aa9bf8006e3ddf49b5412d887c7b9a965b86828357cd02bd8b83cce171",
-      "patched_source_sha256": "24bac7aa9bf8006e3ddf49b5412d887c7b9a965b86828357cd02bd8b83cce171",
+      "upstream_sha256": "ceac49e3f63995c836f60b90de412da1b58ddd06a5c015f57581a6827130ce63",
       "kind": "upstream-copy",
-      "local_sha256": "f2002257ecd9cc290c7edbb6a822ddeeb301f6b00d827efa7d68c6559aced88e"
+      "local_sha256": "ea416d3dd7846975d6b95e31cf137d394aee916f8e8654f6a51507a399229b0b"
     },
     {
       "path": "cmd/serve/webdav/webdav_test.go",
       "upstream_path": "cmd/serve/webdav/webdav_test.go",
-      "upstream_sha256": "24b253722d00a8819c9e8767d75e841c1347cda2174977654ada20b710207f02",
-      "patched_source_sha256": "24b253722d00a8819c9e8767d75e841c1347cda2174977654ada20b710207f02",
+      "upstream_sha256": "5458d3805a95aeb45455da9122b27f2f206d8ed37b47ba4e0fce292f0737d1f4",
       "kind": "upstream-copy",
-      "local_sha256": "356b51271333094d64d03de08368461df24efd127b7313015b7000086ca056e4"
+      "local_sha256": "5b0737f5879732477280e31565c8e17e2ca2265a98f4c2a18aad8038a7a451b7"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/noselfupdate.go",
+      "upstream_path": "cmd/selfupdate/noselfupdate.go",
+      "upstream_sha256": "1d60fa9068890f4851530571fa8763804100a168e4cc775c6b0ad5896df71ad7",
+      "kind": "upstream-copy",
+      "local_sha256": "4f04b7cd8144f5ee11427bf6e12ba16c5628472fc85427261abda9f54c304d2f"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/selfupdate.go",
+      "upstream_path": "cmd/selfupdate/selfupdate.go",
+      "upstream_sha256": "a6f0224d1c4a59bb297446d84fd93eeabe1f205e636f9cda36cec1ffdae1ddb3",
+      "kind": "upstream-copy",
+      "local_sha256": "3c56319331f4781b02200a75bdcbcd66ceb30a284dccc1fcef9079ee9f28f4a2"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/selfupdate.md",
+      "upstream_path": "cmd/selfupdate/selfupdate.md",
+      "upstream_sha256": "9f0b271757e88af9989ef9efd09dfe4cf0930eae4d7178bb7c644b59f8c1a7b4",
+      "kind": "upstream-copy",
+      "local_sha256": "9f0b271757e88af9989ef9efd09dfe4cf0930eae4d7178bb7c644b59f8c1a7b4"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/selfupdate_test.go",
+      "upstream_path": "cmd/selfupdate/selfupdate_test.go",
+      "upstream_sha256": "cbce3b6c447e572710f5656af0984845e1eece339d897b4ec9a79da7d902b460",
+      "kind": "upstream-copy",
+      "local_sha256": "74e1a9a6a70d8273215b335ecbc003ee429bee4a72ee55fc5cb59a1749a05baa"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/testdata/verify/SHA256SUMS",
+      "upstream_path": "cmd/selfupdate/testdata/verify/SHA256SUMS",
+      "upstream_sha256": "e016108d2400ee0b0198af478a72fe79e0829fd72b8dd78df808d331e5eb2058",
+      "kind": "upstream-copy",
+      "local_sha256": "e016108d2400ee0b0198af478a72fe79e0829fd72b8dd78df808d331e5eb2058"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/testdata/verify/archive.zip",
+      "upstream_path": "cmd/selfupdate/testdata/verify/archive.zip",
+      "upstream_sha256": "b20b47f579a2c790ca752fb5d8e5651fade7d5867cbac0a4f71e805fc5c468d0",
+      "kind": "upstream-copy",
+      "local_sha256": "b20b47f579a2c790ca752fb5d8e5651fade7d5867cbac0a4f71e805fc5c468d0"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/verify.go",
+      "upstream_path": "cmd/selfupdate/verify.go",
+      "upstream_sha256": "95db79efe0a0b5408dcfc557ca9caf06592a5aa40a5435c553caf9b000c36348",
+      "kind": "upstream-copy",
+      "local_sha256": "5fa2b51e3b780b152aaaf14cbe4d1bec399323db02106967a6aaf63a8ee26f3c"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/verify_test.go",
+      "upstream_path": "cmd/selfupdate/verify_test.go",
+      "upstream_sha256": "d1475361e480f4d131df2b043f08ec9bfbde3cdc6596ba48c6b8ed7c53d9e759",
+      "kind": "upstream-copy",
+      "local_sha256": "4cf4cf2f53a6546ace545539be2d9d5f429becaac43753a551df234a4f490a35"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/writable_unix.go",
+      "upstream_path": "cmd/selfupdate/writable_unix.go",
+      "upstream_sha256": "a34b0b257c879221a552a845a08349ca68fd6f101e2945e48b0f71c066eff725",
+      "kind": "upstream-copy",
+      "local_sha256": "e05760af3db4dabb0c2d00a6ab7b03494b19fde32faf5510c3bf3b64d9eb0ad5"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/writable_unsupported.go",
+      "upstream_path": "cmd/selfupdate/writable_unsupported.go",
+      "upstream_sha256": "e8bcd49b493319109c7107c3540c2fc8d7c7776c53fe280a8bab61d2dfb4b0d7",
+      "kind": "upstream-copy",
+      "local_sha256": "dc06c8ed816c3e63210592522b29d147157369b2f63197fe3c41f487855f4e45"
+    },
+    {
+      "path": "cmd/upstreamselfupdate/writable_windows.go",
+      "upstream_path": "cmd/selfupdate/writable_windows.go",
+      "upstream_sha256": "60e1c04c4b663239e297b7679bda5a870f3e3d28a3f9f1cccc89c5a019eb98b4",
+      "kind": "upstream-copy",
+      "local_sha256": "32003084ad6d3fd39123ee6a2e39a6c6db4bb8449ce359f6fd48543b597d639e"
     },
     {
       "path": "vfs/dir.go",
       "upstream_path": "vfs/dir.go",
-      "upstream_sha256": "74e6e04f862d73bead950be7f6187469f0909f8b613faa9894f493253369a3df",
-      "patched_source_sha256": "267b83522ef1dc09c9e5f968437b466af223169b6a5d00a555de3521d42cf574",
+      "upstream_sha256": "6fcae7903bb4cc74be8b9e23fafc374796903029c57620e315ab560cf8cfc835",
       "kind": "lifecycle-fix",
-      "local_sha256": "e83c7d96d8257dcbc2169220aa3936616a0e60c1077be6c4f3726acf6c742be8"
+      "local_sha256": "9f2676f698c7c54490ff98e867e7a9e91b9fde4589c49026d3f3ebe1ae8a766f"
     },
     {
       "path": "vfs/dir_handle.go",
       "upstream_path": "vfs/dir_handle.go",
       "upstream_sha256": "9ae1a89ed2bb75f3e1506a203414310fd49eebb31b8cb2ecd7ac241c6d2688f8",
-      "patched_source_sha256": "9ae1a89ed2bb75f3e1506a203414310fd49eebb31b8cb2ecd7ac241c6d2688f8",
       "kind": "upstream-copy",
       "local_sha256": "45602279f8b09ba393eaf7249fbc4388d715298c7656b9e3452e54ce408620d5"
     },
@@ -1565,23 +1375,20 @@
       "path": "vfs/dir_handle_test.go",
       "upstream_path": "vfs/dir_handle_test.go",
       "upstream_sha256": "618fd99804ca3021bd95d1d5a521e7af7dab8068685e3967618d3ae960e76975",
-      "patched_source_sha256": "618fd99804ca3021bd95d1d5a521e7af7dab8068685e3967618d3ae960e76975",
       "kind": "upstream-copy",
       "local_sha256": "dbdde6e39fecc7f4cefdd370b99e03350dd929f03cf5c70ac35016730200d834"
     },
     {
       "path": "vfs/dir_test.go",
       "upstream_path": "vfs/dir_test.go",
-      "upstream_sha256": "b6aa8eabd60cb1cf0a452fda935f900c09b2b7e31d1cb3565e262367c1d2f3d3",
-      "patched_source_sha256": "b6aa8eabd60cb1cf0a452fda935f900c09b2b7e31d1cb3565e262367c1d2f3d3",
+      "upstream_sha256": "70be6041a861722029618b30bb8379d21ed3f17a2d158035d4bdd8034e1871b3",
       "kind": "upstream-copy",
-      "local_sha256": "9c8fff3272d4526d303684dfe67bc5f245f75bdb4f5393e12a5b594c90cdcdc8"
+      "local_sha256": "19b0c29830640201df11e4c91657f08f22c440455ac434352bd1743808860f29"
     },
     {
       "path": "vfs/errors.go",
       "upstream_path": "vfs/errors.go",
       "upstream_sha256": "cce22801a9b94849365da5f5318d243d7e620c6d7eccfc995f6bcd5e4ee3a484",
-      "patched_source_sha256": "cce22801a9b94849365da5f5318d243d7e620c6d7eccfc995f6bcd5e4ee3a484",
       "kind": "upstream-copy",
       "local_sha256": "eaabfcd71031e1608f3e430b793c930a4274f666edc13cdfb3fc9998cbaadcd1"
     },
@@ -1589,31 +1396,27 @@
       "path": "vfs/errors_test.go",
       "upstream_path": "vfs/errors_test.go",
       "upstream_sha256": "ca7487e7cda32e74901858a17b18db79d723e4216cd828c39e61ca41370e7b21",
-      "patched_source_sha256": "ca7487e7cda32e74901858a17b18db79d723e4216cd828c39e61ca41370e7b21",
       "kind": "upstream-copy",
       "local_sha256": "f427f1aa0c4a5b6e40945c509c14a03bfabed826a4eb56c95cc0dcc279d4cebd"
     },
     {
       "path": "vfs/file.go",
       "upstream_path": "vfs/file.go",
-      "upstream_sha256": "c6cbd5d010ccb7bbb834802bf1bfb68e0001216896f0c74409ac332b22cb2d18",
-      "patched_source_sha256": "e74fb71aadca84c54471951672077287ea4cb2c4f47992c37de2129bdcb3669f",
+      "upstream_sha256": "0411d72fbd6b9e4e73f1e904e0e3d082add590560439a9c3755c17f29c8aa223",
       "kind": "lifecycle-fix",
-      "local_sha256": "c660bfe215e8daa15f3bc770093ee753aab94d5ff60f19327fe1b89dcad3a815"
+      "local_sha256": "37e2acaff599c755a33a7f94f5a474ff3005075a5b993bb1f9e8c8bf151e048b"
     },
     {
       "path": "vfs/file_test.go",
       "upstream_path": "vfs/file_test.go",
-      "upstream_sha256": "48fef09cbcbc1a52dec0db2c1a62d064484a50fe334e9bcd127488bda2dbabd4",
-      "patched_source_sha256": "48fef09cbcbc1a52dec0db2c1a62d064484a50fe334e9bcd127488bda2dbabd4",
+      "upstream_sha256": "722c53cfde1a1ebbbf471a6007cfcdbc3f181303e1a71d2e677c9a63896e4056",
       "kind": "upstream-copy",
-      "local_sha256": "9d5fc76bcf2dfac022ddb58c51390744b423c1ad82593a1e117c15439a7f9809"
+      "local_sha256": "8ed0fb91a5f39c8cfa5b549e4df1dda3b1066752d0e7134da6f8d69ae4be00d7"
     },
     {
       "path": "vfs/make_open_tests.go",
       "upstream_path": "vfs/make_open_tests.go",
       "upstream_sha256": "283bea93d363cb17949c7427cd0d256ad4bff1a2362e20c68a2f5ab1be6963dc",
-      "patched_source_sha256": "283bea93d363cb17949c7427cd0d256ad4bff1a2362e20c68a2f5ab1be6963dc",
       "kind": "upstream-copy",
       "local_sha256": "baee1a989c152dcc6d4e5e16af4503c8b637a4544dfac0420c986486a693e1b8"
     },
@@ -1621,7 +1424,6 @@
       "path": "vfs/nodeaux.go",
       "upstream_path": "vfs/nodeaux.go",
       "upstream_sha256": "4d2f087de0d4387967b2da519fdcf4c68f4d259def0bddbee1da555b0eb6e2b8",
-      "patched_source_sha256": "4d2f087de0d4387967b2da519fdcf4c68f4d259def0bddbee1da555b0eb6e2b8",
       "kind": "upstream-copy",
       "local_sha256": "13c01af6646abe67cceb524c8f4406d223f6116403335cec9de9f53bf924878c"
     },
@@ -1629,7 +1431,6 @@
       "path": "vfs/nodeaux_test.go",
       "upstream_path": "vfs/nodeaux_test.go",
       "upstream_sha256": "96fa33afb196212ba61b150c5750877bbf50a8d113da9631c69406527b79878e",
-      "patched_source_sha256": "96fa33afb196212ba61b150c5750877bbf50a8d113da9631c69406527b79878e",
       "kind": "upstream-copy",
       "local_sha256": "95212d9dae77fae66acd9c1e95342859c79deacb478b6187370ceef0f28d75f2"
     },
@@ -1637,7 +1438,6 @@
       "path": "vfs/open_test.go",
       "upstream_path": "vfs/open_test.go",
       "upstream_sha256": "2419f81d090becc0a981856442d76d2b9d327f0e0693731322aaa0cf0c080a61",
-      "patched_source_sha256": "2419f81d090becc0a981856442d76d2b9d327f0e0693731322aaa0cf0c080a61",
       "kind": "upstream-copy",
       "local_sha256": "e3b14dc569cc2ac14662c4840a6606dd0a1f94cdf516677b1bd0e38e40e394f1"
     },
@@ -1645,7 +1445,6 @@
       "path": "vfs/rc.go",
       "upstream_path": "vfs/rc.go",
       "upstream_sha256": "7cc608fe97fb4b7c10d24520df914ccde4674d756a229e8cc60b8e5dc7108ef3",
-      "patched_source_sha256": "7cc608fe97fb4b7c10d24520df914ccde4674d756a229e8cc60b8e5dc7108ef3",
       "kind": "upstream-copy",
       "local_sha256": "d610e8d5d0d8913b043b0e5299630ea3671ce8888a04e878e2b6026c62bf2236"
     },
@@ -1653,7 +1452,6 @@
       "path": "vfs/rc_test.go",
       "upstream_path": "vfs/rc_test.go",
       "upstream_sha256": "6048020e2cbc246e9f492716bbd8c3422cd686d45b4c5d1fdbae70d64c66dff6",
-      "patched_source_sha256": "6048020e2cbc246e9f492716bbd8c3422cd686d45b4c5d1fdbae70d64c66dff6",
       "kind": "upstream-copy",
       "local_sha256": "4a313bd388271110907b8933825edf10ee602fa8f1c4340c2843cadf6bde8a9f"
     },
@@ -1661,7 +1459,6 @@
       "path": "vfs/read.go",
       "upstream_path": "vfs/read.go",
       "upstream_sha256": "f9dc94edf15beee16885176f7ae0490d7cbd858a5841e505e6c502f28a40db56",
-      "patched_source_sha256": "f9dc94edf15beee16885176f7ae0490d7cbd858a5841e505e6c502f28a40db56",
       "kind": "upstream-copy",
       "local_sha256": "3fbd1a0a2f58f5bcdd9f781a5a001fbc2bf6b92593dde22479133cd618226aac"
     },
@@ -1669,7 +1466,6 @@
       "path": "vfs/read_test.go",
       "upstream_path": "vfs/read_test.go",
       "upstream_sha256": "6e31aec9c7aa279ff6749b5aadbf9b2c22e9267c84c80417581ef37bab716fd7",
-      "patched_source_sha256": "6e31aec9c7aa279ff6749b5aadbf9b2c22e9267c84c80417581ef37bab716fd7",
       "kind": "upstream-copy",
       "local_sha256": "7a72e6ed11295e10087b639064ef78f44a868c2baf27f15da387d4462bbacfa3"
     },
@@ -1677,7 +1473,6 @@
       "path": "vfs/read_write.go",
       "upstream_path": "vfs/read_write.go",
       "upstream_sha256": "1eeac72f0ed6b435cc01801df9646a3db1d4fdc34fb8664ff8df78a1a2798136",
-      "patched_source_sha256": "bbba1165939403c52006067a5bb89959e6ec7534beaeacdc3255a23ce5e2b761",
       "kind": "lifecycle-fix",
       "local_sha256": "d6cf0a6121a2806d5d848734cae43012c49c9dab85b0b443c7d1be8cd2b5af31"
     },
@@ -1685,7 +1480,6 @@
       "path": "vfs/read_write_test.go",
       "upstream_path": "vfs/read_write_test.go",
       "upstream_sha256": "d1df117ae01c34c12b129e77b125976c8cb210e171dfbe72664bfef3ab737d97",
-      "patched_source_sha256": "d1df117ae01c34c12b129e77b125976c8cb210e171dfbe72664bfef3ab737d97",
       "kind": "upstream-copy",
       "local_sha256": "3b7d06b7992740196529d206d4fc221ca76e0b608518d9f23b24d516dd3aa565"
     },
@@ -1693,7 +1487,6 @@
       "path": "vfs/sighup.go",
       "upstream_path": "vfs/sighup.go",
       "upstream_sha256": "f25bc71db1994285761cde6bc5cfef60cbf5122d248bdddd9890997890aa5142",
-      "patched_source_sha256": "f25bc71db1994285761cde6bc5cfef60cbf5122d248bdddd9890997890aa5142",
       "kind": "upstream-copy",
       "local_sha256": "ee78b91e29a9ddf27f293954ce1eca7560767974b03cc181fcdec9eb7e0f7ce4"
     },
@@ -1701,9 +1494,15 @@
       "path": "vfs/sighup_unsupported.go",
       "upstream_path": "vfs/sighup_unsupported.go",
       "upstream_sha256": "9356af19c3e00140a0f1a32918ffa316296c5699f54d4145f905e6a1fd34611c",
-      "patched_source_sha256": "9356af19c3e00140a0f1a32918ffa316296c5699f54d4145f905e6a1fd34611c",
       "kind": "upstream-copy",
       "local_sha256": "503d126c1a82e7ee5124ad30c3bfc6331ae72305579be073b2863ba09d5aa2f7"
+    },
+    {
+      "path": "vfs/test_vfs/test_vfs.go",
+      "upstream_path": "vfs/test_vfs/test_vfs.go",
+      "upstream_sha256": "dadf5a125fb4bcc53d9f845a7522bbcc23156447dc59fba287a6ebfbf3a52945",
+      "kind": "upstream-copy",
+      "local_sha256": "928a2c17b9aa2c39c2d23ca36ef9fe3f6b0fc50e25f9baefd138eb8698d3dbaa"
     },
     {
       "path": "vfs/unlink_lifetime_test.go",
@@ -1716,128 +1515,77 @@
     {
       "path": "vfs/vfs.go",
       "upstream_path": "vfs/vfs.go",
-      "upstream_sha256": "4b75fcd1fb2b5056a91d0a2a728b26dc5136e6aa364a5e923299a4b32e9a9c35",
-      "patched_source_sha256": "4b75fcd1fb2b5056a91d0a2a728b26dc5136e6aa364a5e923299a4b32e9a9c35",
+      "upstream_sha256": "fff1c396252675015874e25042e8e7ab38f6d26839e3698621e2bcc9e26ab094",
       "kind": "upstream-copy",
-      "local_sha256": "4236489d995139bb84d9b4f55b1366ffb8c60e6731587d33644f8934e76b20ae"
+      "local_sha256": "65d75e9dee3f7b58dcdcd5372f0ba39b603a7b9b775d41f25b4cc7895189f4b7"
     },
     {
       "path": "vfs/vfs.md",
       "upstream_path": "vfs/vfs.md",
-      "upstream_sha256": "b6e794391132b98ef9685f985d2940de66b852881fba6f038885eac535f17fec",
-      "patched_source_sha256": "b6e794391132b98ef9685f985d2940de66b852881fba6f038885eac535f17fec",
+      "upstream_sha256": "495956cf330738d7a7d9c38d03d70440ebffb9bfdc1080bc21b35e37325ed759",
       "kind": "upstream-copy",
-      "local_sha256": "b6e794391132b98ef9685f985d2940de66b852881fba6f038885eac535f17fec"
+      "local_sha256": "495956cf330738d7a7d9c38d03d70440ebffb9bfdc1080bc21b35e37325ed759"
     },
     {
       "path": "vfs/vfs_case_test.go",
       "upstream_path": "vfs/vfs_case_test.go",
       "upstream_sha256": "660b3fa84af8037c1e9aa40f46c6760c2cdf425a9f1dc8f6f074502c1e95ee9d",
-      "patched_source_sha256": "660b3fa84af8037c1e9aa40f46c6760c2cdf425a9f1dc8f6f074502c1e95ee9d",
       "kind": "upstream-copy",
       "local_sha256": "793461cf6596875369627e87f8bced217d4061590a8fc0151c0db3f5f67e0b58"
     },
     {
       "path": "vfs/vfs_test.go",
       "upstream_path": "vfs/vfs_test.go",
-      "upstream_sha256": "c3611b607038a23729fd65a14786b6152391c974a2dff79dcbb12d99294daf5e",
-      "patched_source_sha256": "c3611b607038a23729fd65a14786b6152391c974a2dff79dcbb12d99294daf5e",
+      "upstream_sha256": "c236cd83f4f748ce1a9be4e456212e80c30bd7e8c7a258fcee4fb2ffa4f49f7b",
       "kind": "upstream-copy",
-      "local_sha256": "67edf9c6724fe9f10400565249727df767d1823d9733151b15ff4cd8dc497d1d"
-    },
-    {
-      "path": "vfs/vfstest_test.go",
-      "upstream_path": "vfs/vfstest_test.go",
-      "upstream_sha256": "6584cf5f5e3acfc6d48879ff23ab12b6a7ace34b6999819e46321fdb2fde7cf4",
-      "patched_source_sha256": "6584cf5f5e3acfc6d48879ff23ab12b6a7ace34b6999819e46321fdb2fde7cf4",
-      "kind": "upstream-copy",
-      "local_sha256": "2a5f24c813f33b0cdd21489e2274e7d81a6497bc1aa513722f1c9cb625063a25"
-    },
-    {
-      "path": "vfs/vstate_string.go",
-      "upstream_path": "vfs/vstate_string.go",
-      "upstream_sha256": "ea19ec8d89fe62e6c7d45d0815032f409e6f9718d21c2691cfe07c262211d064",
-      "patched_source_sha256": "ea19ec8d89fe62e6c7d45d0815032f409e6f9718d21c2691cfe07c262211d064",
-      "kind": "upstream-copy",
-      "local_sha256": "4b5af1a1a4a1892229f77e481044b79d167798dd3cd0d9fc1c35bdbe2cb450d9"
-    },
-    {
-      "path": "vfs/write.go",
-      "upstream_path": "vfs/write.go",
-      "upstream_sha256": "67eb087639816359752cca87ee45247210e6cedb96d00d39d3d664084f1ce005",
-      "patched_source_sha256": "67eb087639816359752cca87ee45247210e6cedb96d00d39d3d664084f1ce005",
-      "kind": "upstream-copy",
-      "local_sha256": "f0166b4e42af5b919a4187df79596ee1e1dae2d431857913ca2851165f785c2f"
-    },
-    {
-      "path": "vfs/write_test.go",
-      "upstream_path": "vfs/write_test.go",
-      "upstream_sha256": "009d79918310ffca87ea7faf712b9b30a197d3f72f1a28a4f1b9afae0767520b",
-      "patched_source_sha256": "009d79918310ffca87ea7faf712b9b30a197d3f72f1a28a4f1b9afae0767520b",
-      "kind": "upstream-copy",
-      "local_sha256": "83415bfc7d2ee698329518d128e7d198bfe6ad3bdaa0e76388160e9c0045e734"
-    },
-    {
-      "path": "vfs/zip.go",
-      "upstream_path": "vfs/zip.go",
-      "upstream_sha256": "be52700f9e6ec80541fb1f7901701187d597eab1012285da415702e8856edb49",
-      "patched_source_sha256": "be52700f9e6ec80541fb1f7901701187d597eab1012285da415702e8856edb49",
-      "kind": "upstream-copy",
-      "local_sha256": "a26d14ab7b33b53441bd8b679da965f1f7cc2fb1c316d7a04ad040984749b880"
-    },
-    {
-      "path": "vfs/zip_test.go",
-      "upstream_path": "vfs/zip_test.go",
-      "upstream_sha256": "9ff05e9113e56809c7e8be2d3d3c253ab7dbdfe61f4a19aa7badd00a14d7de29",
-      "patched_source_sha256": "9ff05e9113e56809c7e8be2d3d3c253ab7dbdfe61f4a19aa7badd00a14d7de29",
-      "kind": "upstream-copy",
-      "local_sha256": "863b305e5d0bd895999172fc824f5f59c8d046fbb82d7e32767f5201b990467a"
-    },
-    {
-      "path": "vfs/test_vfs/test_vfs.go",
-      "upstream_path": "vfs/test_vfs/test_vfs.go",
-      "upstream_sha256": "dadf5a125fb4bcc53d9f845a7522bbcc23156447dc59fba287a6ebfbf3a52945",
-      "patched_source_sha256": "dadf5a125fb4bcc53d9f845a7522bbcc23156447dc59fba287a6ebfbf3a52945",
-      "kind": "upstream-copy",
-      "local_sha256": "928a2c17b9aa2c39c2d23ca36ef9fe3f6b0fc50e25f9baefd138eb8698d3dbaa"
+      "local_sha256": "a3a0da7c52812bb0cf1a3993ae12d1299110b4b1c1b8f0f85102d788bcb0b6e2"
     },
     {
       "path": "vfs/vfscache/cache.go",
       "upstream_path": "vfs/vfscache/cache.go",
-      "upstream_sha256": "b1046bd461aaa4fa477774d519291320516a2c3858de70f4171ea34c7b803bc6",
-      "patched_source_sha256": "d756de0c82070881ce64ddc935c3172cd5c7594a0f64592a097b338fa568ff50",
+      "upstream_sha256": "01bb773ba6ccac11076559d1dfc1518b934e29255acd0d328566f7e81d16b9ee",
       "kind": "lifecycle-fix",
-      "local_sha256": "8142299bf11ad1d71bcab53bc4377ad24de87202f2785fd85a9ee97d53b47121"
+      "local_sha256": "84ed0a28191b37370a0efb5e052c81c2386a72e700c218c6327fd68a98cba26c"
     },
     {
       "path": "vfs/vfscache/cache_test.go",
       "upstream_path": "vfs/vfscache/cache_test.go",
-      "upstream_sha256": "b75b897514f93f9c8c2671879243ac8ffb640163164ffc599ad6681afcdc294d",
-      "patched_source_sha256": "b75b897514f93f9c8c2671879243ac8ffb640163164ffc599ad6681afcdc294d",
+      "upstream_sha256": "277004e19e93ad2954e1a46715c98b789232e24aca7b4ca70e0d9dc355122612",
       "kind": "upstream-copy",
-      "local_sha256": "8d7c301e08e4d4077f10be60722377695cb2663e01a7391fc5328c6a106856e8"
+      "local_sha256": "779d77ff7f15d48614877d32b6cb6146c4cb80b7d0a4f508bb0e53dd8cf19074"
+    },
+    {
+      "path": "vfs/vfscache/downloaders/downloaders.go",
+      "upstream_path": "vfs/vfscache/downloaders/downloaders.go",
+      "upstream_sha256": "cc25edff06bdf91891b520e43e64ead41af5deabcbc7df90799c3ce2362bd161",
+      "kind": "upstream-copy",
+      "local_sha256": "db9c365810e71762d830e896fc153804bfb9956c184fa68bb1ad02796a2daff3"
+    },
+    {
+      "path": "vfs/vfscache/downloaders/downloaders_test.go",
+      "upstream_path": "vfs/vfscache/downloaders/downloaders_test.go",
+      "upstream_sha256": "dfeebf666097942c20a98afde489dec9062866381ebbba35e5f8e3facbdb1ff8",
+      "kind": "upstream-copy",
+      "local_sha256": "39b1af40016338540a4d1159afe6f82a037de37307e9219a9fa846dc9fa81f1d"
     },
     {
       "path": "vfs/vfscache/item.go",
       "upstream_path": "vfs/vfscache/item.go",
-      "upstream_sha256": "b7283b7dd712adae7d67afa4da332b127d5aea54f65ed700251a49608682fa9a",
-      "patched_source_sha256": "011cd1694f0caed035d8135cb7c31b2a5697a1855ac04e5b19d37e4bb7f1095a",
+      "upstream_sha256": "020a4d2187d814bb390a262a68a1c04af827c0b5a3831930e4513416ddc9568d",
       "kind": "lifecycle-fix",
-      "local_sha256": "696f21aad9956fbfaa7eac93a06d7ea687cec0071b82b0c7ab099c9c68f205e6"
+      "local_sha256": "68318f61f7a537dc40403fdd499b9513b0d3048f023d84512457b978924048d4"
     },
     {
       "path": "vfs/vfscache/item_test.go",
       "upstream_path": "vfs/vfscache/item_test.go",
-      "upstream_sha256": "f370b6acb893c0ab087863cf4d0453bed24b9b5097c3aad534ec301f05296f39",
-      "patched_source_sha256": "f370b6acb893c0ab087863cf4d0453bed24b9b5097c3aad534ec301f05296f39",
+      "upstream_sha256": "98e0c1803ef322d85c247dd11a5c73f29af10e38370f28318a31cdc8e1094ad4",
       "kind": "upstream-copy",
-      "local_sha256": "0d9f921a3688d4179cfa17e3b5818a23b013b0d27836704b9c6949f1fba49437"
+      "local_sha256": "02c82da202e150c6e0d0e6578b9fc989959f824d28ae90816efe9af68a58fa7c"
     },
     {
       "path": "vfs/vfscache/item_waiter_test.go",
       "upstream_path": "vfs/vfscache/item_waiter_test.go",
       "upstream_sha256": "93924f868e0a54e231c0de9ca189597731f812e7cef8f5abb85ad994ac1f9da9",
-      "patched_source_sha256": "93924f868e0a54e231c0de9ca189597731f812e7cef8f5abb85ad994ac1f9da9",
       "kind": "upstream-copy",
       "local_sha256": "053cb50e3ce82e3bf538030656e6a0e267a4f9257a3b666f7f1d06e97f6e686c"
     },
@@ -1866,26 +1614,9 @@
       "local_sha256": "c3ef33ca72f48de716fc8b92aad6678315d69c6e44099e371d96f46576f5dd9a"
     },
     {
-      "path": "vfs/vfscache/downloaders/downloaders.go",
-      "upstream_path": "vfs/vfscache/downloaders/downloaders.go",
-      "upstream_sha256": "cc25edff06bdf91891b520e43e64ead41af5deabcbc7df90799c3ce2362bd161",
-      "patched_source_sha256": "cc25edff06bdf91891b520e43e64ead41af5deabcbc7df90799c3ce2362bd161",
-      "kind": "upstream-copy",
-      "local_sha256": "db9c365810e71762d830e896fc153804bfb9956c184fa68bb1ad02796a2daff3"
-    },
-    {
-      "path": "vfs/vfscache/downloaders/downloaders_test.go",
-      "upstream_path": "vfs/vfscache/downloaders/downloaders_test.go",
-      "upstream_sha256": "dfeebf666097942c20a98afde489dec9062866381ebbba35e5f8e3facbdb1ff8",
-      "patched_source_sha256": "dfeebf666097942c20a98afde489dec9062866381ebbba35e5f8e3facbdb1ff8",
-      "kind": "upstream-copy",
-      "local_sha256": "39b1af40016338540a4d1159afe6f82a037de37307e9219a9fa846dc9fa81f1d"
-    },
-    {
       "path": "vfs/vfscache/writeback/writeback.go",
       "upstream_path": "vfs/vfscache/writeback/writeback.go",
       "upstream_sha256": "9e4882a3473ff021e892d054ffeaba34ae31a7f29e10950d21b189ecd47a8740",
-      "patched_source_sha256": "9e4882a3473ff021e892d054ffeaba34ae31a7f29e10950d21b189ecd47a8740",
       "kind": "upstream-copy",
       "local_sha256": "3c71bee9e3127c64945c6332d068bb6d81dcc0c40efe3f24f451c1bdac414b81"
     },
@@ -1893,7 +1624,6 @@
       "path": "vfs/vfscache/writeback/writeback_test.go",
       "upstream_path": "vfs/vfscache/writeback/writeback_test.go",
       "upstream_sha256": "1954739a0d2984f009390050e19937b5816ecad68210746e8abbb0eb38849af7",
-      "patched_source_sha256": "1954739a0d2984f009390050e19937b5816ecad68210746e8abbb0eb38849af7",
       "kind": "upstream-copy",
       "local_sha256": "e63b561583c61f0f614d00cfc40a573500272bfcbcd11b5c36b81f1a02a80425"
     },
@@ -1901,7 +1631,6 @@
       "path": "vfs/vfscommon/cachemode.go",
       "upstream_path": "vfs/vfscommon/cachemode.go",
       "upstream_sha256": "7ee5730ecad81b26c8b32f2f0b57ddb49382550774b79f3b8eb4493ba51c7f65",
-      "patched_source_sha256": "7ee5730ecad81b26c8b32f2f0b57ddb49382550774b79f3b8eb4493ba51c7f65",
       "kind": "upstream-copy",
       "local_sha256": "b2ba9a9ecc14a792adbda0f1b56aeb9869218821e521380632121044f0e96dc8"
     },
@@ -1909,7 +1638,6 @@
       "path": "vfs/vfscommon/cachemode_test.go",
       "upstream_path": "vfs/vfscommon/cachemode_test.go",
       "upstream_sha256": "687007d4aaf0c829b96514d8bd13f755d736e6b4386ddb9c739b2207a22179a7",
-      "patched_source_sha256": "687007d4aaf0c829b96514d8bd13f755d736e6b4386ddb9c739b2207a22179a7",
       "kind": "upstream-copy",
       "local_sha256": "20a09c7a07574b5b59f8ee2b1e0059be22efe9a62b4fb664d0f044a697a1b3c7"
     },
@@ -1917,7 +1645,6 @@
       "path": "vfs/vfscommon/filemode.go",
       "upstream_path": "vfs/vfscommon/filemode.go",
       "upstream_sha256": "c9e37906d702208a1d6b41204ea72d6e2546d6ed00ab2c60d8c9e7cacb2996ed",
-      "patched_source_sha256": "c9e37906d702208a1d6b41204ea72d6e2546d6ed00ab2c60d8c9e7cacb2996ed",
       "kind": "upstream-copy",
       "local_sha256": "687a494e68b4792034e047959b4629bde5f7931824925e0a6477509042f9951e"
     },
@@ -1925,7 +1652,6 @@
       "path": "vfs/vfscommon/filemode_test.go",
       "upstream_path": "vfs/vfscommon/filemode_test.go",
       "upstream_sha256": "b10298fab40cfd1d6875c4ffbc33fca55996f8f3d8c87a3ecb1d7398399598a2",
-      "patched_source_sha256": "b10298fab40cfd1d6875c4ffbc33fca55996f8f3d8c87a3ecb1d7398399598a2",
       "kind": "upstream-copy",
       "local_sha256": "ddbc11d18073b1d08a8bf24d23dca20d5e032f6721e38fc03238c7a752ac950a"
     },
@@ -1933,7 +1659,6 @@
       "path": "vfs/vfscommon/options.go",
       "upstream_path": "vfs/vfscommon/options.go",
       "upstream_sha256": "2f39a5d65887d319d6d04a4e4203b4b22fc19389913ba06b213a3e59c3592770",
-      "patched_source_sha256": "2f39a5d65887d319d6d04a4e4203b4b22fc19389913ba06b213a3e59c3592770",
       "kind": "upstream-copy",
       "local_sha256": "a63dfc3d8a4e74c4e827a8e7b76ad7ef6826b8416dd02d8081cb78769f19d3be"
     },
@@ -1941,7 +1666,6 @@
       "path": "vfs/vfscommon/path.go",
       "upstream_path": "vfs/vfscommon/path.go",
       "upstream_sha256": "ac2e652aa0cc644902cc1e41e20998214b1b8bf09c8d29cc758fc4cbbbf6fa31",
-      "patched_source_sha256": "ac2e652aa0cc644902cc1e41e20998214b1b8bf09c8d29cc758fc4cbbbf6fa31",
       "kind": "upstream-copy",
       "local_sha256": "837660ce5f6ee65162c4a2d67e2b655acfad9a73a00512f38164dceefe59b977"
     },
@@ -1949,7 +1673,6 @@
       "path": "vfs/vfscommon/recover.go",
       "upstream_path": "vfs/vfscommon/recover.go",
       "upstream_sha256": "5b5f87d4fe9d3ecbe6771f5739a0dbf8dab04d5f3da256a38dda0bd0aec65a9a",
-      "patched_source_sha256": "5b5f87d4fe9d3ecbe6771f5739a0dbf8dab04d5f3da256a38dda0bd0aec65a9a",
       "kind": "upstream-copy",
       "local_sha256": "eb5dfcb7d0182cfa74713d5681f5937d71d68da02afae57b596e9d3a71f7ca61"
     },
@@ -1957,7 +1680,6 @@
       "path": "vfs/vfscommon/recover_test.go",
       "upstream_path": "vfs/vfscommon/recover_test.go",
       "upstream_sha256": "375de0ec65ed536591ef10664de4e6ce5b5ac83bda24c5fcfefe2a382cee8122",
-      "patched_source_sha256": "375de0ec65ed536591ef10664de4e6ce5b5ac83bda24c5fcfefe2a382cee8122",
       "kind": "upstream-copy",
       "local_sha256": "724a8a141250ad4b47e6624c89d1c64df12e67aa3a8b8a6aa2c5576f5a5e4613"
     },
@@ -1965,7 +1687,6 @@
       "path": "vfs/vfscommon/vfsflags_non_unix.go",
       "upstream_path": "vfs/vfscommon/vfsflags_non_unix.go",
       "upstream_sha256": "9397012586582aa396cc43e4ce706674d28b7cfb688050affb64ea24dba0d130",
-      "patched_source_sha256": "9397012586582aa396cc43e4ce706674d28b7cfb688050affb64ea24dba0d130",
       "kind": "upstream-copy",
       "local_sha256": "18cde8757ecbf4689d72c50b7c44b9abe3396a260b11f19d1217a4da2366459b"
     },
@@ -1973,7 +1694,6 @@
       "path": "vfs/vfscommon/vfsflags_unix.go",
       "upstream_path": "vfs/vfscommon/vfsflags_unix.go",
       "upstream_sha256": "f0bbfcec05f794350b7f9a7019e078e1766a39bde7d0b9b5ad0fe3e130357b4c",
-      "patched_source_sha256": "f0bbfcec05f794350b7f9a7019e078e1766a39bde7d0b9b5ad0fe3e130357b4c",
       "kind": "upstream-copy",
       "local_sha256": "ef82f9a3d161f33fbec196d232695771b2881e5f15e439231bd511b5830abca2"
     },
@@ -1981,7 +1701,6 @@
       "path": "vfs/vfsflags/vfsflags.go",
       "upstream_path": "vfs/vfsflags/vfsflags.go",
       "upstream_sha256": "9dce85f11a1acad371a10810266ce3441ab786a00819b298689bad734ede430f",
-      "patched_source_sha256": "9dce85f11a1acad371a10810266ce3441ab786a00819b298689bad734ede430f",
       "kind": "upstream-copy",
       "local_sha256": "a745af13cf9c7bc55e8f55a4eb1e8aa3a597ab0a2ca8d09d6b75947583c9554e"
     },
@@ -1989,7 +1708,6 @@
       "path": "vfs/vfstest/dir.go",
       "upstream_path": "vfs/vfstest/dir.go",
       "upstream_sha256": "f40e147c2fe42786d0b2ed4540fa8e2e2b3f6338da9eb64e05bb118423d19737",
-      "patched_source_sha256": "f40e147c2fe42786d0b2ed4540fa8e2e2b3f6338da9eb64e05bb118423d19737",
       "kind": "upstream-copy",
       "local_sha256": "06383b8311538767c724b97a72888d10af22b65b0e3eff36d19d2b6ae0bfc9df"
     },
@@ -1997,7 +1715,6 @@
       "path": "vfs/vfstest/dir_non_unix.go",
       "upstream_path": "vfs/vfstest/dir_non_unix.go",
       "upstream_sha256": "3e6eca14c569abe0019c7b5e1dd830f014d814b8473b37fba0c9f939fb54b655",
-      "patched_source_sha256": "3e6eca14c569abe0019c7b5e1dd830f014d814b8473b37fba0c9f939fb54b655",
       "kind": "upstream-copy",
       "local_sha256": "c6e5d129823ead00b798f74138d69cb888ecbd6f20f00ee895acfec6ce9222a1"
     },
@@ -2005,7 +1722,6 @@
       "path": "vfs/vfstest/dir_unix.go",
       "upstream_path": "vfs/vfstest/dir_unix.go",
       "upstream_sha256": "6a1db95e1c3bff0041f2ccadc1b7f25b94333b8a1d5d96253fc1041a2189e14d",
-      "patched_source_sha256": "6a1db95e1c3bff0041f2ccadc1b7f25b94333b8a1d5d96253fc1041a2189e14d",
       "kind": "upstream-copy",
       "local_sha256": "11101e8eb1ab1c8c91f09832a83d958bc19ba02e6cfeb36ba1b4a671ec89d981"
     },
@@ -2013,7 +1729,6 @@
       "path": "vfs/vfstest/edge_cases.go",
       "upstream_path": "vfs/vfstest/edge_cases.go",
       "upstream_sha256": "97c20e2cd018bbc6b92e5e55020b6da9590581b56261a5f550d58f012cafc3f5",
-      "patched_source_sha256": "97c20e2cd018bbc6b92e5e55020b6da9590581b56261a5f550d58f012cafc3f5",
       "kind": "upstream-copy",
       "local_sha256": "fcf78ce1339d56d4ac02edad850d4f8cc0578a477cfd79f740091d61ba92e5bb"
     },
@@ -2021,7 +1736,6 @@
       "path": "vfs/vfstest/file.go",
       "upstream_path": "vfs/vfstest/file.go",
       "upstream_sha256": "aaee3e968e34cf14e3a23f225027d47d3c01312d3dd217730f191f8fd4705665",
-      "patched_source_sha256": "aaee3e968e34cf14e3a23f225027d47d3c01312d3dd217730f191f8fd4705665",
       "kind": "upstream-copy",
       "local_sha256": "dac0d498fd4e51789445f55b5aa51ee4e149f3fe27c9be6af0155953b4b4619a"
     },
@@ -2029,7 +1743,6 @@
       "path": "vfs/vfstest/fs.go",
       "upstream_path": "vfs/vfstest/fs.go",
       "upstream_sha256": "db8c8f837fdb50da2b84a99a89797cf415b85156d52c984e99cc97a6d4696c7d",
-      "patched_source_sha256": "db8c8f837fdb50da2b84a99a89797cf415b85156d52c984e99cc97a6d4696c7d",
       "kind": "upstream-copy",
       "local_sha256": "64dae29d4514a18baf9ae620aa94f6e7b14d8656b1021769507e5b5c131401d0"
     },
@@ -2037,7 +1750,6 @@
       "path": "vfs/vfstest/mknod_other.go",
       "upstream_path": "vfs/vfstest/mknod_other.go",
       "upstream_sha256": "bf6760d1add16e573be84adab53bf04abbc2cbe499eac0e544848d55704986af",
-      "patched_source_sha256": "bf6760d1add16e573be84adab53bf04abbc2cbe499eac0e544848d55704986af",
       "kind": "upstream-copy",
       "local_sha256": "9855393d226c74f7e47ade463091a542904a4e5a88f311c09a2baeda8bb76919"
     },
@@ -2045,7 +1757,6 @@
       "path": "vfs/vfstest/mknod_unix.go",
       "upstream_path": "vfs/vfstest/mknod_unix.go",
       "upstream_sha256": "1ab4592fbdaff2df5684d9a0b9c723224692a2a156d404903485d2cd2e0b32c2",
-      "patched_source_sha256": "1ab4592fbdaff2df5684d9a0b9c723224692a2a156d404903485d2cd2e0b32c2",
       "kind": "upstream-copy",
       "local_sha256": "f6980ebca373e9d980d9c358c0e0ef27f099cdb210cf0d808df22bc4f63d9d8a"
     },
@@ -2053,7 +1764,6 @@
       "path": "vfs/vfstest/os.go",
       "upstream_path": "vfs/vfstest/os.go",
       "upstream_sha256": "bf2cbc4ec46b1b41c04377a7c1b50e0adab49ff7a55417bb8c65aac2f42615b0",
-      "patched_source_sha256": "bf2cbc4ec46b1b41c04377a7c1b50e0adab49ff7a55417bb8c65aac2f42615b0",
       "kind": "upstream-copy",
       "local_sha256": "cc8f6735b85249e97691a0394e19bbd8aa57f0a9fe23bed7f871b5eb302b41b3"
     },
@@ -2061,7 +1771,6 @@
       "path": "vfs/vfstest/read.go",
       "upstream_path": "vfs/vfstest/read.go",
       "upstream_sha256": "1df08088a02862f8a9606decbb4cc26311020e703f8c61bc4492da64088cd7c3",
-      "patched_source_sha256": "1df08088a02862f8a9606decbb4cc26311020e703f8c61bc4492da64088cd7c3",
       "kind": "upstream-copy",
       "local_sha256": "3b4cb2fe087ac7ca0b792545bd52cf6c53aa8809e20b065f375bec09a0a8beee"
     },
@@ -2069,7 +1778,6 @@
       "path": "vfs/vfstest/read_non_unix.go",
       "upstream_path": "vfs/vfstest/read_non_unix.go",
       "upstream_sha256": "b8729996f0cf4a202c7fdfc72589af0ed90183cf378527d56b98ae02c0b0a1e7",
-      "patched_source_sha256": "b8729996f0cf4a202c7fdfc72589af0ed90183cf378527d56b98ae02c0b0a1e7",
       "kind": "upstream-copy",
       "local_sha256": "27475b8fea7072529cf6d7c8cd54a028dd9c82f56fc0573368080766d2fe7c22"
     },
@@ -2077,7 +1785,6 @@
       "path": "vfs/vfstest/read_unix.go",
       "upstream_path": "vfs/vfstest/read_unix.go",
       "upstream_sha256": "40748f7d5fea4dce6745f3c9379a64da23e00a7209c69528f8da06bb5e2bb5eb",
-      "patched_source_sha256": "40748f7d5fea4dce6745f3c9379a64da23e00a7209c69528f8da06bb5e2bb5eb",
       "kind": "upstream-copy",
       "local_sha256": "78abaa6d857e5cbc73df1819291fee183263636659f3c5f3ef57169c5de9cc55"
     },
@@ -2085,7 +1792,6 @@
       "path": "vfs/vfstest/submount.go",
       "upstream_path": "vfs/vfstest/submount.go",
       "upstream_sha256": "61afd017a949a1e82f7932116acf85368da5469efaf611a29243133d12cf06ae",
-      "patched_source_sha256": "61afd017a949a1e82f7932116acf85368da5469efaf611a29243133d12cf06ae",
       "kind": "upstream-copy",
       "local_sha256": "a24c85e8f7c4a138b2987b5240056ea203c1dfaa47a43254de8ebbadbb4eabc9"
     },
@@ -2093,7 +1799,6 @@
       "path": "vfs/vfstest/vfs.go",
       "upstream_path": "vfs/vfstest/vfs.go",
       "upstream_sha256": "5bda9db1209b6895cd610062f607d42d317621e8d27ac75487448b78e6648241",
-      "patched_source_sha256": "5bda9db1209b6895cd610062f607d42d317621e8d27ac75487448b78e6648241",
       "kind": "upstream-copy",
       "local_sha256": "33c1de84b9de3fd842c0b6fc95d7c9869157a2a28c4d37c8a6b58e9b36e1ad8d"
     },
@@ -2101,7 +1806,6 @@
       "path": "vfs/vfstest/write.go",
       "upstream_path": "vfs/vfstest/write.go",
       "upstream_sha256": "35c951bcfb2f4d1ba67c27df3d00c8808833b828fb5970e042068f68316891e5",
-      "patched_source_sha256": "35c951bcfb2f4d1ba67c27df3d00c8808833b828fb5970e042068f68316891e5",
       "kind": "upstream-copy",
       "local_sha256": "e453c50089f0a4bf182c242c1a46ca3da7b5402c500bf8fec882a0277c5d65a4"
     },
@@ -2109,7 +1813,6 @@
       "path": "vfs/vfstest/write_other.go",
       "upstream_path": "vfs/vfstest/write_other.go",
       "upstream_sha256": "535d8ea34c3c03f5ac9a145f3cf219ba15a2fe743794a82f1b344e07c31a47f6",
-      "patched_source_sha256": "535d8ea34c3c03f5ac9a145f3cf219ba15a2fe743794a82f1b344e07c31a47f6",
       "kind": "upstream-copy",
       "local_sha256": "b5c2c6a20837160650afeecaef0f32f9a9011405aeec21847bdabac66964bfe8"
     },
@@ -2117,7 +1820,6 @@
       "path": "vfs/vfstest/write_unix.go",
       "upstream_path": "vfs/vfstest/write_unix.go",
       "upstream_sha256": "b257db36cfd04ba86f9a277144367425bbb2ecb53fad40fa57d4974400a0dac8",
-      "patched_source_sha256": "b257db36cfd04ba86f9a277144367425bbb2ecb53fad40fa57d4974400a0dac8",
       "kind": "upstream-copy",
       "local_sha256": "2a76f887c651f6a99ac3fa7c450754117a047274e0da66ee65913c6867b1c598"
     },
@@ -2125,9 +1827,50 @@
       "path": "vfs/vfstest/write_windows.go",
       "upstream_path": "vfs/vfstest/write_windows.go",
       "upstream_sha256": "0ef35023f2a3a73813988f659dd87461f9016091ec4d0e8d2835e68f3ffa35b5",
-      "patched_source_sha256": "0ef35023f2a3a73813988f659dd87461f9016091ec4d0e8d2835e68f3ffa35b5",
       "kind": "upstream-copy",
       "local_sha256": "0289162b0fab3995527c0b9a92e7b91915635b7092f1369f950af95958c359d5"
+    },
+    {
+      "path": "vfs/vfstest_test.go",
+      "upstream_path": "vfs/vfstest_test.go",
+      "upstream_sha256": "6584cf5f5e3acfc6d48879ff23ab12b6a7ace34b6999819e46321fdb2fde7cf4",
+      "kind": "upstream-copy",
+      "local_sha256": "2a5f24c813f33b0cdd21489e2274e7d81a6497bc1aa513722f1c9cb625063a25"
+    },
+    {
+      "path": "vfs/vstate_string.go",
+      "upstream_path": "vfs/vstate_string.go",
+      "upstream_sha256": "ea19ec8d89fe62e6c7d45d0815032f409e6f9718d21c2691cfe07c262211d064",
+      "kind": "upstream-copy",
+      "local_sha256": "4b5af1a1a4a1892229f77e481044b79d167798dd3cd0d9fc1c35bdbe2cb450d9"
+    },
+    {
+      "path": "vfs/write.go",
+      "upstream_path": "vfs/write.go",
+      "upstream_sha256": "67eb087639816359752cca87ee45247210e6cedb96d00d39d3d664084f1ce005",
+      "kind": "upstream-copy",
+      "local_sha256": "f0166b4e42af5b919a4187df79596ee1e1dae2d431857913ca2851165f785c2f"
+    },
+    {
+      "path": "vfs/write_test.go",
+      "upstream_path": "vfs/write_test.go",
+      "upstream_sha256": "009d79918310ffca87ea7faf712b9b30a197d3f72f1a28a4f1b9afae0767520b",
+      "kind": "upstream-copy",
+      "local_sha256": "83415bfc7d2ee698329518d128e7d198bfe6ad3bdaa0e76388160e9c0045e734"
+    },
+    {
+      "path": "vfs/zip.go",
+      "upstream_path": "vfs/zip.go",
+      "upstream_sha256": "be52700f9e6ec80541fb1f7901701187d597eab1012285da415702e8856edb49",
+      "kind": "upstream-copy",
+      "local_sha256": "a26d14ab7b33b53441bd8b679da965f1f7cc2fb1c316d7a04ad040984749b880"
+    },
+    {
+      "path": "vfs/zip_test.go",
+      "upstream_path": "vfs/zip_test.go",
+      "upstream_sha256": "9ff05e9113e56809c7e8be2d3d3c253ab7dbdfe61f4a19aa7badd00a14d7de29",
+      "kind": "upstream-copy",
+      "local_sha256": "863b305e5d0bd895999172fc824f5f59c8d046fbb82d7e32767f5201b990467a"
     }
   ],
   "integration_adjustments": [
@@ -2153,5 +1896,6 @@
   "format_adjustments": [
     "vfs/rc.go: remove inherited trailing space in help text",
     "vfs/COPYING.rclone: remove inherited extra final blank line"
-  ]
+  ],
+  "sync_note": "Synced official v1.75.2 while retaining gclone unlink lifetime and test integration changes."
 }

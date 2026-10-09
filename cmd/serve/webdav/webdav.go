@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 // Package webdav implements a WebDAV server backed by rclone VFS
 package webdav
@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"path"
 	"strconv"
@@ -260,8 +261,8 @@ func webDAVCompressMiddleware() func(http.Handler) http.Handler {
 var _ webdav.FileSystem = (*WebDAV)(nil)
 
 // Make a new WebDAV to serve the remote
-func newWebDAV(ctx context.Context, f fs.Fs, opt *Options, vfsOpt *vfscommon.Options, proxyOpt *proxy.Options) (w *WebDAV, err error) {
-	w = &WebDAV{
+func newWebDAV(ctx context.Context, f fs.Fs, opt *Options, vfsOpt *vfscommon.Options, proxyOpt *proxy.Options) (_ *WebDAV, err error) {
+	w := &WebDAV{
 		f:            f,
 		ctx:          ctx,
 		opt:          *opt,
@@ -312,6 +313,7 @@ func newWebDAV(ctx context.Context, f fs.Fs, opt *Options, vfsOpt *vfscommon.Opt
 
 	router := w.server.Router()
 	router.Use(
+		w.provider.HoldVFS,
 		webDAVCompressMiddleware(),
 		middleware.SetHeader("Accept-Ranges", "bytes"),
 		middleware.SetHeader("Server", "rclone/"+fs.Version),
@@ -399,6 +401,24 @@ func (w *WebDAV) postprocess(r *http.Request, remote string) {
 
 func (w *WebDAV) ServeHTTP(rw http.ResponseWriter, r *http.Request) {
 	urlPath := r.URL.Path
+	err := checkPath(urlPath)
+	// COPY and MOVE also take a path from the Destination header.
+	//
+	// The webdav handler strips the BaseURL from it as a string
+	// prefix, turning "/base../x" into "../x", so check what is
+	// left after doing the same.
+	if err == nil && (r.Method == "COPY" || r.Method == "MOVE") {
+		var u *url.URL
+		u, err = url.Parse(r.Header.Get("Destination"))
+		if err == nil {
+			err = checkPath(strings.TrimPrefix(u.Path, w.opt.HTTP.BaseURL))
+		}
+	}
+	if err != nil {
+		fs.Infof(urlPath, "%s from %s rejected: %v", r.Method, r.RemoteAddr, err)
+		http.Error(rw, http.StatusText(http.StatusBadRequest), http.StatusBadRequest)
+		return
+	}
 	isDir := strings.HasSuffix(urlPath, "/")
 	remote := strings.Trim(urlPath, "/")
 	if !w.opt.DisableDirList && (r.Method == "GET" || r.Method == "HEAD") && isDir {
@@ -453,7 +473,7 @@ func (w *WebDAV) serveDir(rw http.ResponseWriter, r *http.Request, dirRemote str
 		if dirRemote == "" {
 			zipName = "root"
 		}
-		rw.Header().Set("Content-Disposition", "attachment; filename=\""+zipName+".zip\"")
+		rw.Header().Set("Content-Disposition", mime.FormatMediaType("attachment", map[string]string{"filename": zipName + ".zip"}))
 		rw.Header().Set("Content-Type", "application/zip")
 		rw.Header().Set("Last-Modified", time.Now().UTC().Format(http.TimeFormat))
 		err := vfs.CreateZip(ctx, dir, rw)
@@ -516,6 +536,23 @@ func (w *WebDAV) logRequest(r *http.Request, err error) {
 	fs.Infof(r.URL.Path, "%s from %s", r.Method, r.RemoteAddr)
 }
 
+// checkPath returns an error if the client supplied path name has a
+// "." or ".." element. Such an element can't name anything inside
+// the directory served, and the VFS refuses to make nodes with such
+// names, so the request is rejected up front with a clear error.
+//
+// The elements are checked individually rather than the path compared
+// with path.Clean because path.Clean can't resolve a leading ".." in
+// a relative path and leaves it in place.
+func checkPath(name string) error {
+	for elem := range strings.SplitSeq(name, "/") {
+		if elem == "." || elem == ".." {
+			return fmt.Errorf("path %q has a %q element", name, elem)
+		}
+	}
+	return nil
+}
+
 // Mkdir creates a directory
 func (w *WebDAV) Mkdir(ctx context.Context, name string, perm os.FileMode) (err error) {
 	// defer log.Trace(name, "perm=%v", perm)("err = %v", &err)
@@ -523,12 +560,7 @@ func (w *WebDAV) Mkdir(ctx context.Context, name string, perm os.FileMode) (err 
 	if err != nil {
 		return err
 	}
-	dir, leaf, err := VFS.StatParent(name)
-	if err != nil {
-		return err
-	}
-	_, err = dir.Mkdir(leaf)
-	return err
+	return VFS.Mkdir(name, perm)
 }
 
 // OpenFile opens a file or a directory

@@ -1,11 +1,15 @@
 Purpose: document the temporary, repository-local VFS override in gclone.
 
 SOURCE
-  rclone v1.75.1, commit 687d264b689b8c49a67e2e52a8a5e0caa01c04ce.
-  VFS lifetime fix prepared and tested at ef2553b129df9bad7393513a3e2297e29895e2cf.
+  Synced with rclone v1.75.2, commit be8d6044eacb843b74d335db0c5fbe09222031fe.
+  VFS lifetime fix originally prepared at ef2553b129df9bad7393513a3e2297e29895e2cf
+  against v1.75.1 and retained during this upgrade. Official v1.75.2 still
+  reproduces the unlink/writeback defect in all 8 Linux FUSE regression cases.
   No additional remote fork or module replacement is required.
   go.mod continues to depend on the official github.com/rclone/rclone module.
   UPSTREAM.json records every copied file, original hash and import mapping.
+  Headers on unchanged files retain their first-copy version; UPSTREAM.json
+  identifies the current synchronized upstream base for every copied file.
   Preserve the upstream MIT license in COPYING.rclone beside these notes.
 
 LOCAL OVERRIDE
@@ -63,6 +67,5 @@ LIMITS
   Cached bytes remain accessible on materialized old descriptors after unlink.
   Uncached ranges and deferred old opens fail rather than open a replacement.
   Crash/rollback leftovers in cache-dir/vfs-unlinked need manual recovery.
-  These regressions do not establish full SQLite remote durability or prove
-  that every reported SIGBUS cause is fixed. Linux FUSE runtime verification
-  remains distinct from local VFS API tests and cross compilation.
+  The regression scope is unlink, late writeback and same-name replacement
+  ownership. Application-specific database durability is outside this patch.

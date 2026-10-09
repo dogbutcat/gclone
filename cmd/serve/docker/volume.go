@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package docker
 
@@ -142,6 +142,9 @@ func (vol *Volume) restoreState(ctx context.Context, drv *Driver) error {
 	volOpt := vol.Options
 	volOpt["fs"] = vol.Fs
 	volOpt["type"] = vol.Type
+	// applyOptions consumes "path" into vol.Path rather than leaving it in
+	// vol.Options, so it must be fed back explicitly like fs and type.
+	volOpt["path"] = vol.Path
 	if err := vol.applyOptions(volOpt); err != nil {
 		return err
 	}

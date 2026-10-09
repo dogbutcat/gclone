@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 //go:build ignore
 
@@ -17,6 +17,16 @@ func main() {
 	err := json.NewDecoder(os.Stdin).Decode(&in)
 	if err != nil {
 		log.Fatal(err)
+	}
+
+	// Note each run in a file if asked to
+	if runLog := os.Getenv("RCLONE_TEST_PROXY_RUN_LOG"); runLog != "" {
+		f, err := os.OpenFile(runLog, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0600)
+		if err != nil {
+			log.Fatal(err)
+		}
+		_, _ = f.WriteString(in["user"] + "\n")
+		_ = f.Close()
 	}
 
 	// Write the output

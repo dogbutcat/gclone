@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 // Package zip implements a zip archiver for the archive backend
 package zip
@@ -11,6 +11,7 @@ import (
 	"io"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"time"
 
@@ -146,6 +147,13 @@ func (f *Fs) readZip() (singleObject bool, err error) {
 			skipped++
 			continue
 		}
+		isDir := strings.HasSuffix(file.Name, "/")
+		// A file entry whose last component is "", "." or ".." names
+		// a directory rather than a file, so skip
+		if !isDir && sanitize.Leaf(path.Base(file.Name)) != nil {
+			skipped++
+			continue
+		}
 		remote = path.Join(f.prefix, remote)
 		if f.root != "" {
 			// Ignore all files outside the root, requiring a path
@@ -160,19 +168,12 @@ func (f *Fs) readZip() (singleObject bool, err error) {
 				remote = strings.TrimPrefix(remote, f.root+"/")
 			}
 		}
-		if strings.HasSuffix(file.Name, "/") {
+		if isDir {
 			dir := fs.NewDir(remote, file.Modified)
 			dt.AddDir(dir)
 		} else {
 			if remote == "" {
-				// A file at the root itself can only be the
-				// archive member f.root points at - with no root
-				// it is a crafted name for the archive's own
-				// directory, which can't be a file
-				if f.root == "" {
-					skipped++
-					continue
-				}
+				// A file at the root is the archive member f.root points at
 				remote = path.Base(f.root)
 				singleObject = true
 				dt = dirtree.New()
@@ -219,7 +220,8 @@ func (f *Fs) List(ctx context.Context, dir string) (entries fs.DirEntries, err e
 		return nil, fs.ErrorDirNotFound
 	}
 	fs.Debugf(f, "dir=%q, entries=%v", dir, entries)
-	return entries, nil
+	// Return a copy as callers may filter the listing in place
+	return slices.Clone(entries), nil
 }
 
 // NewObject finds the Object at remote.

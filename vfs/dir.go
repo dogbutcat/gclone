@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package vfs
 
@@ -21,6 +21,7 @@ import (
 	"github.com/rclone/rclone/fs/object"
 	"github.com/rclone/rclone/fs/operations"
 	"github.com/rclone/rclone/fs/walk"
+	"github.com/rclone/rclone/lib/sanitize"
 	"golang.org/x/text/unicode/norm"
 )
 
@@ -491,6 +492,9 @@ func (d *Dir) AddVirtual(leaf string, size int64, isDir bool) {
 			// since the path came from the cache it may have fs.LinkSuffix,
 			// so remove it and mark the *File accordingly
 			leaf, isLink = strings.CutSuffix(leaf, fs.LinkSuffix)
+			if leaf == "" || leaf == "." || leaf == ".." {
+				return
+			}
 		}
 		f := newFile(d, dPath, nil, leaf)
 		if isLink {
@@ -757,11 +761,13 @@ func (d *Dir) _readDirFromEntries(entries fs.DirEntries, dirTree dirtree.DirTree
 	mv := d._newManageVirtuals()
 	for _, entry := range entries {
 		name := path.Base(entry.Remote())
-		if name == "." || name == ".." {
-			continue
-		}
 		if d.vfs.Opt.Links {
 			name, _ = strings.CutSuffix(name, fs.LinkSuffix)
+		}
+		// Check after removing the suffix so "...rclonelink" can't
+		// become an entry called ".."
+		if name == "" || name == "." || name == ".." {
+			continue
 		}
 		node := d.items[name]
 		if mv.add(d, name) {
@@ -878,7 +884,7 @@ func (d *Dir) statMetadata(leaf, baseLeaf string) (metaNode Node, err error) {
 	}
 	// Make a memory based file with metadataDump in
 	remote := path.Join(d.path, leaf)
-	o := object.NewMemoryObject(remote, entry.ModTime(d.vfs.ctx), metadataDump)
+	o := object.NewMemoryObject(remote, node.ModTime(), metadataDump)
 	f := newFile(d, d.path, o, leaf)
 	// Base the metadata inode number off the real file inode number
 	// to keep it constant
@@ -1054,9 +1060,28 @@ func (d *Dir) Open(flags int) (fd Handle, err error) {
 	return newDirHandle(d), nil
 }
 
+// checkName returns EINVAL if name isn't a single safe path element,
+// that is it is empty, "." or "..", or contains a "/".
+//
+// Such a name can't be a child of the directory and would make a node
+// whose path is outside it (or outside the VFS root, since at the root
+// path.Join("", "..") preserves the "..").
+func (d *Dir) checkName(name string) error {
+	if err := sanitize.Leaf(name); err != nil {
+		fs.Errorf(d, "Refusing unsafe name: %v", err)
+		return EINVAL
+	}
+	return nil
+}
+
 // Create makes a new file node
+//
+// It returns EINVAL if name isn't a single safe path element.
 func (d *Dir) Create(name string, flags int) (*File, error) {
 	// fs.Debugf(path, "Dir.Create")
+	if err := d.checkName(name); err != nil {
+		return nil, err
+	}
 	// Return existing node if one exists
 	node, err := d.stat(name)
 	switch err {
@@ -1086,9 +1111,14 @@ func (d *Dir) Create(name string, flags int) (*File, error) {
 }
 
 // Mkdir creates a new directory
+//
+// It returns EINVAL if name isn't a single safe path element.
 func (d *Dir) Mkdir(name string) (*Dir, error) {
 	if d.vfs.Opt.ReadOnly {
 		return nil, EROFS
+	}
+	if err := d.checkName(name); err != nil {
+		return nil, err
 	}
 	path := path.Join(d.path, name)
 	node, err := d.stat(name)
@@ -1198,10 +1228,15 @@ func (d *Dir) RemoveName(name string) error {
 }
 
 // Rename the file
+//
+// It returns EINVAL if newName isn't a single safe path element.
 func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
 	// fs.Debugf(d, "BEFORE\n%s", d.dump())
 	if d.vfs.Opt.ReadOnly {
 		return EROFS
+	}
+	if err := destDir.checkName(newName); err != nil {
+		return err
 	}
 	oldPath := path.Join(d.path, oldName)
 	newPath := path.Join(destDir.path, newName)

@@ -1,13 +1,13 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 //go:build ignore
 
 // A simple auth proxy for testing purposes
 //
 // For S3 access key auth (no "pass" or "public_key" in the input) the
-// access key ID and secret are read from the environment variable
-// RCLONE_TEST_PROXY_AUTH_KEY as "accessKeyID,secretAccessKey" and any
-// other access key ID is refused.
+// access key IDs and secrets are read from the environment variable
+// RCLONE_TEST_PROXY_AUTH_KEY as "accessKeyID,secretAccessKey" pairs
+// separated by ";" and any other access key ID is refused.
 package main
 
 import (
@@ -40,14 +40,14 @@ func main() {
 	_, havePass := in["pass"]
 	_, havePublicKey := in["public_key"]
 	if !havePass && !havePublicKey {
-		accessKeyID, secret, ok := strings.Cut(os.Getenv("RCLONE_TEST_PROXY_AUTH_KEY"), ",")
-		if !ok {
-			log.Fatal("RCLONE_TEST_PROXY_AUTH_KEY not set")
+		for pair := range strings.SplitSeq(os.Getenv("RCLONE_TEST_PROXY_AUTH_KEY"), ";") {
+			if accessKeyID, secret, ok := strings.Cut(pair, ","); ok && in["user"] == accessKeyID {
+				out["_secret_access_key"] = secret
+			}
 		}
-		if in["user"] != accessKeyID {
+		if out["_secret_access_key"] == "" {
 			log.Fatalf("unknown access key ID %q", in["user"])
 		}
-		out["_secret_access_key"] = secret
 	}
 	json.NewEncoder(os.Stdout).Encode(&out)
 	if err != nil {

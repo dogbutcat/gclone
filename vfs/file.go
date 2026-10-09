@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package vfs
 
@@ -550,6 +550,11 @@ func (f *File) _applyPendingModTime() error {
 	switch err {
 	case nil:
 		fs.Debugf(f.o, "Applied pending mod time %v OK", f.pendingModTime)
+		// The cache fingerprint predates the new modtime, so refresh
+		// it or the next open discards the cached data as stale.
+		if f.d.vfs.cache != nil && f.d.vfs.cache.Exists(f._cachePath()) {
+			f.d.vfs.cache.SetModTime(f._cachePath(), f.pendingModTime)
+		}
 	case fs.ErrorCantSetModTime, fs.ErrorCantSetModTimeWithoutDelete:
 		// do nothing, in order to not break "touch somefile" if it exists already
 	default:

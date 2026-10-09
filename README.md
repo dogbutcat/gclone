@@ -40,7 +40,7 @@ libfuse-dev, gcc
 
 ### Local VFS compatibility copy
 
-The VFS and its command adapters are copied from rclone v1.75.1 into this
+The VFS and its command adapters are synced with rclone v1.75.2 in this
 repository to isolate unlinked files from delayed writeback. Builds use the
 normal `go build` command and the official rclone module dependency.
 
@@ -48,7 +48,7 @@ normal `go build` command and the official rclone module dependency.
 flowchart TD
     Entry["gclone entry"] --> Registry["Command and backend registration"]
     Registry --> Adapters["Local mount / serve / archive / updater adapters"]
-    Adapters --> VFS["Local vfs: v1.75.1 snapshot + lifecycle fix"]
+    Adapters --> VFS["Local vfs: v1.75.2 snapshot + lifecycle fix"]
     VFS --> FS["Official rclone fs interfaces"]
     FS --> Drive["gclone Drive / SA customization"]
     FS --> Backends["Other official backends"]

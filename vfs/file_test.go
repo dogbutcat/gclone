@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package vfs
 
@@ -16,6 +16,7 @@ import (
 	"github.com/rclone/rclone/fstest"
 	"github.com/rclone/rclone/fstest/mockfs"
 	"github.com/rclone/rclone/fstest/mockobject"
+	"github.com/rclone/rclone/lib/ranges"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -163,6 +164,22 @@ func TestFileSetModTime(t *testing.T) {
 			}
 		}
 	}
+}
+
+// Touching a closed, fully cached file must keep its cached data: the
+// remote modtime change it makes is not a change to the content.
+func TestFileSetModTimeKeepsCache(t *testing.T) {
+	_, vfs, file, _ := fileCreate(t, vfscommon.CacheModeFull)
+	fileCheckContents(t, file)
+	whole := ranges.Range{Pos: 0, Size: int64(len("file1 contents"))}
+	item := vfs.cache.Item(file.Path())
+	require.True(t, item.HasRange(whole))
+
+	require.NoError(t, file.SetModTime(t2))
+
+	require.NoError(t, item.Open(file.getObject()))
+	defer func() { require.NoError(t, item.Close(nil)) }()
+	assert.True(t, item.HasRange(whole), "touch discarded the cached data")
 }
 
 func fileCheckContents(t *testing.T, file *File) {

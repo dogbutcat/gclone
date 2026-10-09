@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package s3
 
@@ -28,10 +28,10 @@ func (l logger) Print(level gofakes3.LogLevel, v ...any) {
 	default:
 		fallthrough
 	case gofakes3.LogErr:
-		fs.Errorf("serve s3", s)
+		fs.Errorf("serve s3", "%s", s)
 	case gofakes3.LogWarn:
-		fs.Infof("serve s3", s)
+		fs.Infof("serve s3", "%s", s)
 	case gofakes3.LogInfo:
-		fs.Debugf("serve s3", s)
+		fs.Debugf("serve s3", "%s", s)
 	}
 }

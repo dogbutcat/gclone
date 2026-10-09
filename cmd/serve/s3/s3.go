@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package s3
 
@@ -48,6 +48,18 @@ var OptionsInfo = fs.Options{{
 	Default: fs.SizeSuffix(256 * 1024 * 1024),
 	Help:    "Maximum memory buffered per streamed multipart upload for parts arriving out of order, 0 for unlimited",
 }, {
+	Name:    "multipart_streaming_buffer_total",
+	Default: fs.SizeSuffix(1024 * 1024 * 1024),
+	Help:    "Maximum memory buffered by all the streamed multipart uploads of a user for parts arriving out of order, 0 for unlimited",
+}, {
+	Name:    "multipart_max_uploads",
+	Default: 1000,
+	Help:    "Maximum number of streamed multipart uploads a user can have in progress at once, 0 for unlimited",
+}, {
+	Name:    "metadata_max_objects",
+	Default: 100000,
+	Help:    "Maximum number of objects of a user whose metadata is kept in memory, 0 for unlimited",
+}, {
 	Name:    "multipart_expiry",
 	Default: fs.Duration(24 * time.Hour),
 	Help:    "Abort incomplete multipart uploads idle for longer than this, 0 to keep forever",
@@ -64,6 +76,9 @@ type Options struct {
 	NoCleanup                     bool          `config:"no_cleanup"`
 	DisableMultipartStreaming     bool          `config:"disable_multipart_streaming"`
 	MultipartStreamingBufferLimit fs.SizeSuffix `config:"multipart_streaming_buffer_limit"`
+	MultipartStreamingBufferTotal fs.SizeSuffix `config:"multipart_streaming_buffer_total"`
+	MultipartMaxUploads           int           `config:"multipart_max_uploads"`
+	MetadataMaxObjects            int           `config:"metadata_max_objects"`
 	MultipartExpiry               fs.Duration   `config:"multipart_expiry"`
 	Auth                          httplib.AuthConfig
 	HTTP                          httplib.Config

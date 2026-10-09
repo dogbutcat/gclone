@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 package vfscache
 
@@ -610,6 +610,13 @@ func (item *Item) open(o fs.Object) (err error) {
 			item.mu.Unlock()
 			_ = dls.Close(nil)
 			item.mu.Lock()
+		}
+		// _checkObject sized the old fd, so size the new file here
+		// or GetSize reads 0 and ReadAt returns unfetched zeros.
+		err = item._truncateToCurrentSize()
+		if err != nil {
+			item.opens--
+			return fmt.Errorf("vfs cache item: recreate cache file failed: %w", err)
 		}
 	}
 

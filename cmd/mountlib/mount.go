@@ -1,4 +1,4 @@
-// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+// gclone-local VFS integration: copied from rclone v1.75.2; see vfs/UPSTREAM.txt.
 
 // Package mountlib provides the mount command.
 package mountlib
@@ -301,6 +301,10 @@ func NewMountCommand(commandName string, hidden bool, mount MountFn) *cobra.Comm
 
 			if Opt.Daemon {
 				config.PassConfigKeyForDaemonization = true
+				if !fs.IsDaemon() {
+					// The daemon child starts these servers on the same addresses
+					cmd.StopRemoteControl()
+				}
 			}
 
 			if os.Getenv("PATH") == "" && runtime.GOOS != "windows" {
