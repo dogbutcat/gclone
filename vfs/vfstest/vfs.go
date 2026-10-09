@@ -1,0 +1,23 @@
+// gclone-local VFS integration: copied from rclone v1.75.1; see vfs/UPSTREAM.txt.
+
+// Package vfstest provides tests for VFS.
+package vfstest
+
+import (
+	"os"
+
+	"github.com/dogbutcat/gclone/vfs"
+)
+
+// vfsOs is an implementation of Oser backed by the "vfs" package
+type vfsOs struct {
+	*vfs.VFS
+}
+
+// Stat
+func (v vfsOs) Stat(path string) (os.FileInfo, error) {
+	return v.VFS.Stat(path)
+}
+
+// Check interfaces
+var _ Oser = vfsOs{}

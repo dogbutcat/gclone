@@ -38,6 +38,28 @@ libfuse-dev, gcc
 
 > if need `mount` function, cgofuse is required, 
 
+### Local VFS compatibility copy
+
+The VFS and its command adapters are copied from rclone v1.75.1 into this
+repository to isolate unlinked files from delayed writeback. Builds use the
+normal `go build` command and the official rclone module dependency.
+
+```mermaid
+flowchart TD
+    Entry["gclone entry"] --> Registry["Command and backend registration"]
+    Registry --> Adapters["Local mount / serve / archive / updater adapters"]
+    Adapters --> VFS["Local vfs: v1.75.1 snapshot + lifecycle fix"]
+    VFS --> FS["Official rclone fs interfaces"]
+    FS --> Drive["gclone Drive / SA customization"]
+    FS --> Backends["Other official backends"]
+    Fixed["Upstream release passes the same regressions"] -.-> Drop["Restore imports and remove copied paths"]
+```
+
+See [VFS maintenance and removal notes](vfs/UPSTREAM.txt) and the
+[file provenance manifest](vfs/UPSTREAM.json). Mount/serve adapters must use
+the same VFS to avoid duplicate RC and option registration. The copied
+upstream `selfupdate` command remains separate from gclone's `gselfupdate`.
+
 ## Instructions 
 ### 1.service_account_file_path Configuration   
 add `service_account_file_path` Configuration.For dynamic replacement service_account_file(sa file). Replace configuration when `rateLimitExceeded` error occurs

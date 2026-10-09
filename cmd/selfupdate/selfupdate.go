@@ -18,8 +18,8 @@ import (
 	"runtime"
 	"strings"
 
+	"github.com/dogbutcat/gclone/cmd/cmount"
 	"github.com/rclone/rclone/cmd"
-	"github.com/rclone/rclone/cmd/cmount"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config/flags"
 	"github.com/rclone/rclone/fs/fshttp"

@@ -1,0 +1,68 @@
+Purpose: document the temporary, repository-local VFS override in gclone.
+
+SOURCE
+  rclone v1.75.1, commit 687d264b689b8c49a67e2e52a8a5e0caa01c04ce.
+  VFS lifetime fix prepared and tested at ef2553b129df9bad7393513a3e2297e29895e2cf.
+  No additional remote fork or module replacement is required.
+  go.mod continues to depend on the official github.com/rclone/rclone module.
+  UPSTREAM.json records every copied file, original hash and import mapping.
+  Preserve the upstream MIT license in COPYING.rclone beside these notes.
+
+LOCAL OVERRIDE
+  vfs/** supplies the VFS, cache, options, flags and regression tests.
+  cmd/{mountlib,mount,mount2,cmount,nfsmount} use this local VFS.
+  VFS-backed serve commands and their proxy share the same VFS/options.
+  backend/archive with squashfs/zip also imports VFS and must use this copy.
+  cmd/upstreamselfupdate preserves the original selfupdate command with local
+  cmount detection; cmd/selfupdate remains gclone's existing gselfupdate.
+  VFS-free serve/restic, serve root, archive CLI and other backends stay upstream.
+  Tests use gclone's backend registration. servetest resolves uncopied backend
+  test packages through Go instead of a relative source-tree directory.
+  fstest/testserver/init.d/README.gclone supplies the directory expected by
+  upstream local/configured-remote tests; it does not start external servers.
+  Archive CLI tests require a matching rclone executable in PATH; for gclone
+  validation use a temporary rclone-named link to the freshly built gclone.
+
+WHY THE ADAPTERS ARE INCLUDED
+  Copying vfs alone does not redirect Go imports in upstream commands.
+  Two VFS implementations would register the same RC paths and global options;
+  registration silently overwrites, so a successful build cannot prove wiring.
+  Check go list -deps for both normal and cmount builds on each target platform:
+  there must be no github.com/rclone/rclone/vfs or its subpackages in the binary.
+
+FUNCTIONAL FIX
+  Explicit unlink retires the File/Item lifetime, drains pending uploads, keeps
+  old cached descriptors isolated from same-name replacements, and prevents
+  late callbacks from publishing deleted directory entries.
+  Remote deletion failure restores cached data and writeback. Rollback failure
+  rejects further writes while retaining recovery data. Per-path reservations
+  exclude conflicting rename/unlink operations without serializing all files.
+  See TestUnlink*, TestCacheUnlink*, TestItemStoreMissingCacheDoesNotPublish.
+
+UPGRADE AND REMOVE
+  When upgrading rclone, compare these copied packages against that release;
+  UPSTREAM.json distinguishes original copies from the lifecycle patch.
+  Keep local imports until an upstream release passes the same regressions.
+  To drop the override after verification:
+    1. Restore the upstream imports in cmd/all/all.go and backend/all/all.go.
+    2. Restore upstream cmount imports in existing cmd/selfupdate code/tests.
+    3. Remove only the copied paths listed by UPSTREAM.json, UPSTREAM.txt,
+       UPSTREAM.json and COPYING.rclone. Remove the README's local VFS block
+       and its links, then run go mod tidy to prune copied-test dependencies.
+       Remove the testserver marker only if no remaining test relies on it.
+    4. Run normal/cmount builds, SA tests and upstream VFS lifecycle regressions.
+  Do not remove gclone's existing Drive, copy, selfupdate or version code.
+  No build-preparation script or GitHub Actions workflow change is needed.
+
+BUILD SCOPE
+  This override applies to gclone CLI builds, including the Android CLI.
+  The existing workflow's separate gomobile bind target explicitly builds
+  upstream librclone/gomobile; that library keeps its upstream implementation.
+
+LIMITS
+  Cached bytes remain accessible on materialized old descriptors after unlink.
+  Uncached ranges and deferred old opens fail rather than open a replacement.
+  Crash/rollback leftovers in cache-dir/vfs-unlinked need manual recovery.
+  These regressions do not establish full SQLite remote durability or prove
+  that every reported SIGBUS cause is fixed. Linux FUSE runtime verification
+  remains distinct from local VFS API tests and cross compilation.

@@ -1,0 +1,8 @@
+Purpose: let the upstream fstest runner locate its test-server directory.
+
+Local archive tests and unconfigured remote tests do not require a server.
+The upstream runner checks for this directory before deciding that a remote
+has no start script. Keep this marker so those tests also work in gclone.
+
+No external test-server startup scripts are bundled here. Tests needing a
+configured server require that server/configuration to be supplied explicitly.

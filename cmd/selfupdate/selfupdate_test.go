@@ -13,7 +13,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/rclone/rclone/cmd/cmount"
+	"github.com/dogbutcat/gclone/cmd/cmount"
 	"github.com/rclone/rclone/lib/buildinfo"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
