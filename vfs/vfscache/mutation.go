@@ -4,6 +4,7 @@
 package vfscache
 
 import (
+	"errors"
 	"fmt"
 	"sync"
 	"syscall"
@@ -75,5 +76,56 @@ func (c *Cache) BeginRename(name, newName string) (*RenameMutation, error) {
 
 // Rename moves the cache entries while this caller owns both pathnames.
 func (m *RenameMutation) Rename(newObj fs.Object) error {
-	return m.c.rename(m.names[0], m.names[1], newObj)
+	_, _, err := m.apply(func(fs.Object) (fs.Object, error) { return newObj, nil }, false, m.c.rename)
+	return err
+}
+
+// Apply retires the overwritten destination across the remote move and cache
+// rename. A committed result must also advance the VFS namespace, even if a
+// subsequent local failure needs recovery. Drop with the rename regressions
+// once upstream owns this lifetime boundary; see vfs/UPSTREAM.txt.
+func (m *RenameMutation) Apply(move func(fs.Object) (fs.Object, error)) (committed bool, newObj fs.Object, err error) {
+	return m.apply(move, true, m.c.rename)
+}
+
+func (m *RenameMutation) apply(move func(fs.Object) (fs.Object, error), remote bool, renameSource func(string, string, fs.Object) error) (committed bool, newObj fs.Object, err error) {
+	oldName, newName := m.names[0], m.names[1]
+	if oldName == newName {
+		return true, nil, nil
+	}
+	namespaceCommitted := false
+	unrestored := false
+	_, err = m.c.retire(newName, func(overwritten fs.Object, stage string) (bool, error) {
+		var moveErr error
+		newObj, moveErr = move(overwritten)
+		if moveErr != nil {
+			return false, moveErr
+		}
+		namespaceCommitted = remote && newObj != nil
+		if renameErr := renameSource(oldName, newName, newObj); renameErr != nil {
+			var rollbackErr *renameRollbackError
+			if namespaceCommitted || errors.As(renameErr, &rollbackErr) {
+				// A committed remote move or an unsafe local rollback cannot
+				// restore the old target over source data. Preserve both in the
+				// already-created retirement stage and fail old source handles.
+				recoveryErr := m.c.quarantineRenameSource(oldName, newName, stage, renameErr)
+				if !namespaceCommitted && recoveryErr == nil {
+					// Source bytes are now safe outside both cache roots. The old
+					// target can be restored without overwriting those bytes.
+					return false, fmt.Errorf("source cache needs recovery in %q: %w", stage, renameErr)
+				}
+				unrestored = !namespaceCommitted
+				return true, errors.Join(renameErr, recoveryErr)
+			}
+			return false, renameErr
+		}
+		namespaceCommitted = true
+		return true, nil
+	})
+	committed = namespaceCommitted
+	if unrestored {
+		err = &RenameRecoveryError{err}
+	}
+
+	return committed, newObj, err
 }

@@ -87,6 +87,7 @@ type Info struct {
 	Rs          ranges.Ranges // which parts of the file are present
 	Fingerprint string        // fingerprint of remote object
 	Dirty       bool          // set if the backing file has been modified
+	Recovery    string        `json:",omitempty"` // gclone: failed rename requires manual cache recovery
 }
 
 // Items are a slice of *Item ordered by ATime
@@ -166,6 +167,11 @@ func newItem(c *Cache, name string) (item *Item) {
 		item._removeFile("metadata doesn't exist")
 	} else if err != nil {
 		item.remove(fmt.Sprintf("failed to load metadata: %v", err))
+	}
+
+	if item.info.Recovery != "" {
+		item.unlinked = true
+		item.unlinkErr = errors.New(item.info.Recovery)
 	}
 
 	// Get size estimate (which is best we can do until Open() called)
@@ -866,6 +872,7 @@ func (item *Item) _actualClose(storeFn StoreFn, syncWriteBack bool) (err error) 
 		item.fd = nil
 	}
 	if item.unlinked {
+		fs.Debugf(item.name, "vfs cache: closed retired item")
 		return errors.Join(err, item.unlinkErr)
 	}
 
@@ -1403,7 +1410,7 @@ func (item *Item) _updateFingerprint() {
 //
 // call with lock held
 func (item *Item) _setModTime(modTime time.Time) {
-	if item.unlinked {
+	if item.unlinked || item.unlinking {
 		return
 	}
 	fs.Debugf(item.name, "vfs cache: setting modification time to %v", modTime)
@@ -1639,18 +1646,24 @@ func (item *Item) rename(name string, newName string, newObj fs.Object) (err err
 	// id for writeback cancel
 	id := item.writeBackID
 
-	// Set internal state
-	item.name = newName
-	item.o = newObj
-	item._updateFingerprint()
-
-	// Rename cache file if it exists
-	err = rename(item.c.toOSPath(name), item.c.toOSPath(newName)) // No locking in Cache
-
-	// Rename meta file if it exists
-	err2 := rename(item.c.toOSPathMeta(name), item.c.toOSPathMeta(newName)) // No locking in Cache
-	if err2 != nil {
-		err = err2
+	// Install both backing paths before changing the Item identity. A failed
+	// metadata move must restore source data before the destination retirement
+	// transaction restores its staged files (gclone rename lifetime hotfix).
+	oldData, newData := item.c.toOSPath(name), item.c.toOSPath(newName)
+	oldMeta, newMeta := item.c.toOSPathMeta(name), item.c.toOSPathMeta(newName)
+	err = rename(oldData, newData)
+	if err == nil {
+		err = rename(oldMeta, newMeta)
+		if err != nil {
+			if rollbackErr := rename(newData, oldData); rollbackErr != nil {
+				err = &renameRollbackError{errors.Join(err, rollbackErr)}
+			}
+		}
+	}
+	if err == nil {
+		item.name = newName
+		item.o = newObj
+		item._updateFingerprint()
 	}
 
 	item.mu.Unlock()
@@ -1659,6 +1672,8 @@ func (item *Item) rename(name string, newName string, newObj fs.Object) (err err
 	if downloaders != nil {
 		_ = downloaders.Close(nil)
 	}
-	item.c.writeback.Rename(id, newName)
+	if err == nil {
+		item.c.writeback.Rename(id, newName)
+	}
 	return err
 }

@@ -4,6 +4,7 @@ package vfs
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"path"
@@ -1246,10 +1247,11 @@ func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
 		fs.Errorf(oldPath, "Dir.Rename error: %v", err)
 		return err
 	}
+	var committedErr *renameCommittedError
 	switch x := oldNode.DirEntry().(type) {
 	case nil:
 		if oldFile, ok := oldNode.(*File); ok {
-			if err = oldFile.rename(d.vfs.ctx, destDir, newName); err != nil {
+			if err = oldFile.rename(d.vfs.ctx, destDir, newName); err != nil && !errors.As(err, &committedErr) {
 				fs.Errorf(oldPath, "Dir.Rename error: %v", err)
 				return err
 			}
@@ -1259,7 +1261,7 @@ func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
 		}
 	case fs.Object:
 		if oldFile, ok := oldNode.(*File); ok {
-			if err = oldFile.rename(d.vfs.ctx, destDir, newName); err != nil {
+			if err = oldFile.rename(d.vfs.ctx, destDir, newName); err != nil && !errors.As(err, &committedErr) {
 				fs.Errorf(oldPath, "Dir.Rename error: %v", err)
 				return err
 			}
@@ -1306,6 +1308,9 @@ func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
 
 	// fs.Debugf(newPath, "Dir.Rename renamed from %q", oldPath)
 	// fs.Debugf(d, "AFTER\n%s", d.dump())
+	if committedErr != nil {
+		return committedErr
+	}
 	return nil
 }
 

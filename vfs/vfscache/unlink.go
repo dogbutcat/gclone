@@ -39,6 +39,17 @@ func (c *Cache) Unlink(name string, remove func(fs.Object) error) (removed bool,
 		return false, err
 	}
 	defer mutation.Close()
+	return c.retire(name, func(o fs.Object, _ string) (bool, error) {
+		err := remove(o)
+		return err == nil, err
+	})
+}
+
+// retire stages a destination lifetime while its caller owns the pathname
+// reservation. The action may replace that pathname rather than delete it.
+// Only a pre-commit error permits restoring the old data. A post-commit error
+// keeps recovery files outside reload roots and still fences the old handles.
+func (c *Cache) retire(name string, action func(fs.Object, string) (bool, error)) (committed bool, err error) {
 	c.mu.Lock()
 	item, _ := c._get(name)
 	item.mu.Lock()
@@ -104,9 +115,9 @@ func (c *Cache) Unlink(name string, remove func(fs.Object) error) (removed bool,
 	o := item.o
 	item.mu.Unlock()
 	if err == nil {
-		err = remove(o)
+		committed, err = action(o, stage)
 	}
-	if err != nil {
+	if !committed {
 		// Restore bytes first, then persist any writes made during deletion.
 		// On a filesystem failure keep the reservation and recovery files;
 		// never resume an upload through an incompletely restored pathname.
@@ -161,19 +172,26 @@ func (c *Cache) Unlink(name string, remove func(fs.Object) error) (removed bool,
 	item.mu.Lock()
 	defer item.mu.Unlock()
 	item.unlinked, item.unlinking = true, false
+	if err != nil {
+		item.unlinkErr = errors.Join(item.unlinkErr, err)
+	}
 	item.beingReset = false
 	item.cond.Broadcast()
 	for i, moved := range staged {
-		if moved {
+		if moved && err == nil {
 			if cleanupErr := os.Remove(stagePath(i)); cleanupErr != nil && !os.IsNotExist(cleanupErr) {
 				fs.Errorf(name, "vfs cache: unlink committed; quarantined file %q needs cleanup: %v", stagePath(i), cleanupErr)
 			}
 		}
 	}
-	_ = os.Remove(stage)
+	if err == nil {
+		_ = os.Remove(stage)
+	} else {
+		err = fmt.Errorf("vfs cache: mutation committed; recovery data in %q: %w", stage, err)
+	}
 	if c.item[name] == item {
 		delete(c.item, name)
 		delete(c.errItems, name)
 	}
-	return true, nil
+	return true, err
 }

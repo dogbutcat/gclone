@@ -43,10 +43,31 @@ FUNCTIONAL FIX
   exclude conflicting rename/unlink operations without serializing all files.
   See TestUnlink*, TestCacheUnlink*, TestItemStoreMissingCacheDoesNotPublish.
 
+  mod1.6.5 also retires the old destination during rename-overwrite. In
+  upstream v1.75.2, a held clean reader can close after replacement and write
+  its old sidecar and mtime into the new cache pathname. The previous unlink
+  patch did not cover that rename boundary. Rename now shares the staged
+  lifetime transaction, including upload draining and pre-commit rollback.
+  Old target handles keep cached bytes but lose namespace/metadata authority.
+  Grace closes are fenced during both transitional and terminal retirement.
+  Cached and uncached sources, deferred opens and deferred Minimal-mode
+  renames use the same destination retirement boundary.
+
+  A remote-committed/local-cache failure advances the committed namespace but
+  returns an error. Source cache data is quarantined in the existing recovery
+  stage, and affected source handles fail writes rather than acknowledging
+  data that cannot upload. Unsafe local rollback also preserves both cached
+  generations for recovery rather than restoring the target over the source.
+  If quarantine itself fails, a Recovery sidecar marker fences reload; any
+  failure to persist that marker is reported and needs manual intervention
+  before restart. No cloud-backend atomic rename guarantee is added here.
+  See TestRename*, TestCacheRename*, rename_lifetime.go, rename_recovery.go.
+
 UPGRADE AND REMOVE
   When upgrading rclone, compare these copied packages against that release;
   UPSTREAM.json distinguishes original copies from the lifecycle patch.
-  Keep local imports until an upstream release passes the same regressions.
+  Keep local imports until an upstream release passes both the unlink and
+  rename-overwrite regressions, including held read-only and grace handles.
   To drop the override after verification:
     1. Restore the upstream imports in cmd/all/all.go and backend/all/all.go.
     2. Restore upstream cmount imports in existing cmd/selfupdate code/tests.

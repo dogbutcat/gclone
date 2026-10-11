@@ -1362,7 +1362,7 @@
       "upstream_path": "vfs/dir.go",
       "upstream_sha256": "6fcae7903bb4cc74be8b9e23fafc374796903029c57620e315ab560cf8cfc835",
       "kind": "lifecycle-fix",
-      "local_sha256": "9f2676f698c7c54490ff98e867e7a9e91b9fde4589c49026d3f3ebe1ae8a766f"
+      "local_sha256": "26fe916b776d9ee789f77548f04cc66ebe17c4db0e750f459572885ad30a0cf5"
     },
     {
       "path": "vfs/dir_handle.go",
@@ -1404,7 +1404,7 @@
       "upstream_path": "vfs/file.go",
       "upstream_sha256": "0411d72fbd6b9e4e73f1e904e0e3d082add590560439a9c3755c17f29c8aa223",
       "kind": "lifecycle-fix",
-      "local_sha256": "37e2acaff599c755a33a7f94f5a474ff3005075a5b993bb1f9e8c8bf151e048b"
+      "local_sha256": "6254a29054fd81773b72e7c14a9975cb89a372ac87c495ff8e54199b7b614038"
     },
     {
       "path": "vfs/file_test.go",
@@ -1482,6 +1482,20 @@
       "upstream_sha256": "d1df117ae01c34c12b129e77b125976c8cb210e171dfbe72664bfef3ab737d97",
       "kind": "upstream-copy",
       "local_sha256": "3b7d06b7992740196529d206d4fc221ca76e0b608518d9f23b24d516dd3aa565"
+    },
+    {
+      "path": "vfs/rename_lifetime.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "bdbf58317b2982663ff8ceaaef05cbcf775e173b4d17c564cddf65e3d9c24bd8"
+    },
+    {
+      "path": "vfs/rename_lifetime_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "1257d6f4b8865868525720fac61f4c1a48622f527a07d1677cbd17abf66e7e5f"
     },
     {
       "path": "vfs/sighup.go",
@@ -1573,7 +1587,7 @@
       "upstream_path": "vfs/vfscache/item.go",
       "upstream_sha256": "020a4d2187d814bb390a262a68a1c04af827c0b5a3831930e4513416ddc9568d",
       "kind": "lifecycle-fix",
-      "local_sha256": "68318f61f7a537dc40403fdd499b9513b0d3048f023d84512457b978924048d4"
+      "local_sha256": "ffde6595e94958443f8cbb4a4616930517aa3d0919d6f88740d6f1e4a26ecbb2"
     },
     {
       "path": "vfs/vfscache/item_test.go",
@@ -1595,7 +1609,21 @@
       "upstream_sha256": null,
       "patched_source_sha256": "9c9c6f60756a703cb0b6e7743b67119a2d330ac8d7abf5d88ae70c89b40ce38f",
       "kind": "lifecycle-fix",
-      "local_sha256": "94501a1f056293408956c4cb5b032a86f987b66d8e927e99eb3c6f95fc2b6578"
+      "local_sha256": "0769698f000ae60aee184026916580fdd13e61f08f7104ed29a8bc1798a1f156"
+    },
+    {
+      "path": "vfs/vfscache/rename_lifetime_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "dd4fde59cd93fac12f7bac0ec2b7945952b2fbc6559a348ff603d85319691fad"
+    },
+    {
+      "path": "vfs/vfscache/rename_recovery.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "54f90dee66b501a74bd503496270cea96ebf837d8b7a5a0bf97d1cdc2adb9346"
     },
     {
       "path": "vfs/vfscache/unlink.go",
@@ -1603,7 +1631,7 @@
       "upstream_sha256": null,
       "patched_source_sha256": "2a1ad6f9695b4c47e711c462157752282a8cad84d09f663bdf049ae152c25fb1",
       "kind": "lifecycle-fix",
-      "local_sha256": "b647c2c3201b825c32342c691b4e1034cb5db853b779e9d4781f6c02171c40c4"
+      "local_sha256": "59c7e2ac9acd285ca8a919dce6f8c97e3df242b2ce9b529774dd8f9045e1c3a9"
     },
     {
       "path": "vfs/vfscache/unlink_test.go",
@@ -1897,5 +1925,15 @@
     "vfs/rc.go: remove inherited trailing space in help text",
     "vfs/COPYING.rclone: remove inherited extra final blank line"
   ],
-  "sync_note": "Synced official v1.75.2 while retaining gclone unlink lifetime and test integration changes."
+  "sync_note": "Synced official v1.75.2 while retaining gclone unlink lifetime and test integration changes.",
+  "rename_lifetime_patch": {
+    "gclone_version": "v1.75.2-mod1.6.5",
+    "upstream_affected_version": "v1.75.2",
+    "purpose": "Retire overwritten cache and File lifetimes across rename; isolate old close metadata and writeback.",
+    "regression_files": [
+      "vfs/rename_lifetime_test.go",
+      "vfs/vfscache/rename_lifetime_test.go"
+    ],
+    "removal": "Drop with the local lifetime override only after upstream passes both unlink and rename-overwrite regressions."
+  }
 }

@@ -238,95 +238,78 @@ func (f *File) rename(ctx context.Context, destDir *Dir, newName string) error {
 	oldPendingRenameFun := f.pendingRenameFun
 	oldPath := f._cachePath()
 	newCacheName := f._fixCachePath(newName)
+	writing := f._writingInProgress()
 	f.mu.RUnlock()
 
-	if features := d.Fs().Features(); features.Move == nil && features.Copy == nil {
-		err := fmt.Errorf("Fs %q can't rename files (no server-side Move or Copy)", d.Fs())
-		fs.Errorf(f.Path(), "Dir.Rename error: %v", err)
-		return err
+	dPath := destDir.Path()
+	newPath := path.Join(dPath, newCacheName)
+	if oldPath == newPath {
+		return nil
 	}
-
-	// File.mu is unlocked here to call Dir.Path()
-	newPath := path.Join(destDir.Path(), newCacheName)
-
-	applyRename := func(ctx context.Context, mutation *vfscache.RenameMutation) (err error) {
+	if features := d.Fs().Features(); features.Move == nil && features.Copy == nil {
+		return fmt.Errorf("Fs %q can't rename files (no server-side Move or Copy)", d.Fs())
+	}
+	move := func(ctx context.Context) (fs.Object, error) {
 		f.mu.RLock()
 		o := f.o
-		d := f.d
 		f.mu.RUnlock()
-		var newObject fs.Object
-		// if o is nil then are writing the file so no need to rename the object
-		if o != nil {
-			if o.Remote() == newPath {
-				return nil // no need to rename
-			}
-
-			// do the move of the remote object
-			dstOverwritten, _ := d.Fs().NewObject(ctx, newPath)
-			newObject, err = operations.Move(ctx, d.Fs(), dstOverwritten, newPath, o)
-			if err != nil {
-				fs.Errorf(f.Path(), "File.Rename error: %v", err)
-				return err
-			}
-
-			// newObject can be nil here for example if --dry-run
-			if newObject == nil {
-				err = errors.New("rename failed: nil object returned")
-				fs.Errorf(f.Path(), "File.Rename %v", err)
-				return err
-			}
+		if o == nil {
+			return nil, nil // a new cached file has not been uploaded yet
 		}
-		// Rename in the cache
-		if d.vfs.cache != nil && d.vfs.cache.Exists(oldPath) {
-			if err := mutation.Rename(newObject); err != nil {
-				fs.Infof(f.Path(), "File.Rename failed in Cache: %v", err)
-			}
+		if o.Remote() == newPath {
+			return o, nil
 		}
-		// Update the node with the new details
-		fs.Debugf(f.Path(), "Updating file with %v %p", newObject, f)
-		// f.rename(destDir, newObject)
+		dstOverwritten, _ := d.Fs().NewObject(ctx, newPath)
+		newObject, err := operations.Move(ctx, d.Fs(), dstOverwritten, newPath, o)
+		if err == nil && newObject == nil {
+			err = errors.New("rename failed: nil object returned")
+		}
+		return newObject, err
+	}
+	setIdentity := func() {
 		f.mu.Lock()
-		if newObject != nil {
-			f.o = newObject
+		f.d, f.dPath, f.leaf = destDir, dPath, newName
+		f.mu.Unlock()
+	}
+	setObject := func(o fs.Object) {
+		f.mu.Lock()
+		if o != nil {
+			f.o = o
 			f._setIsLink()
 		}
 		f.pendingRenameFun = nil
 		f.mu.Unlock()
-		return nil
 	}
-	// Deferred chains run before acquiring a fresh reservation, so chained
-	// renames never recursively reserve overlapping source/destination names.
+	// Deferred chains run before a fresh reservation. Their destination was
+	// already retired when the namespace rename was accepted; doing it again
+	// here would retire the source which now owns that pathname.
 	renameCall := func(ctx context.Context) error {
 		if oldPendingRenameFun != nil {
 			if err := oldPendingRenameFun(ctx); err != nil {
 				return err
 			}
 		}
-		var mutation *vfscache.RenameMutation
 		if d.vfs.cache != nil {
-			var err error
-			mutation, err = d.vfs.cache.BeginRename(oldPath, newPath)
+			mutation, err := d.vfs.cache.BeginRename(oldPath, newPath)
 			if err != nil {
 				return err
 			}
 			defer mutation.Close()
 		}
-		return applyRename(ctx, mutation)
+		o, err := move(ctx)
+		if err == nil {
+			setObject(o)
+		}
+		return err
 	}
-
-	f.mu.RLock()
-	writing := f._writingInProgress()
-	f.mu.RUnlock()
-	CacheMode := d.vfs.Opt.CacheMode
-	delayed := writing && (CacheMode < vfscommon.CacheModeMinimal ||
-		(CacheMode == vfscommon.CacheModeMinimal && !destDir.vfs.cache.Exists(oldPath)))
+	cacheMode := d.vfs.Opt.CacheMode
+	delayed := writing && (cacheMode < vfscommon.CacheModeMinimal ||
+		(cacheMode == vfscommon.CacheModeMinimal && !d.vfs.cache.Exists(oldPath)))
 	if !delayed && oldPendingRenameFun != nil {
 		if err := oldPendingRenameFun(ctx); err != nil {
 			return err
 		}
 	}
-	// Admission must precede local File identity changes and remote Move.
-	// For a deferred rename this token is released after scheduling only.
 	var mutation *vfscache.RenameMutation
 	if d.vfs.cache != nil {
 		var err error
@@ -336,26 +319,41 @@ func (f *File) rename(ctx context.Context, destDir *Dir, newName string) error {
 		}
 		defer mutation.Close()
 	}
-
-	// rename the file object
-	dPath := destDir.Path()
-	f.mu.Lock()
-	f.d = destDir
-	f.dPath = dPath
-	f.leaf = newName
-	f.mu.Unlock()
-
-	// Delay the rename if not using RW caching. For the minimal case we
-	// need to look in the cache to see if caching is in use.
-	if delayed {
-		fs.Debugf(oldPath, "File is currently open, delaying rename %p", f)
-		f.mu.Lock()
-		f.pendingRenameFun = renameCall
-		f.mu.Unlock()
-		return nil
-	}
-
-	return applyRename(ctx, mutation)
+	return f.replaceDestination(destDir, newName, func(target *File) (bool, error) {
+		if delayed {
+			if mutation != nil {
+				if err := mutation.Rename(nil); err != nil {
+					return false, err
+				}
+			}
+			setIdentity()
+			f.mu.Lock()
+			f.pendingRenameFun = renameCall
+			f.mu.Unlock()
+			return true, nil
+		}
+		var o fs.Object
+		var err error
+		var committed bool
+		if mutation != nil {
+			committed, o, err = mutation.Apply(func(overwritten fs.Object) (fs.Object, error) {
+				if target != nil && overwritten != nil {
+					// Cancellation can return a newer destination object. Keep it
+					// on abort, while unlinking prevents directory publication.
+					target.setObject(overwritten)
+				}
+				return move(ctx)
+			})
+		} else {
+			o, err = move(ctx)
+			committed = err == nil
+		}
+		if committed {
+			setIdentity()
+			setObject(o)
+		}
+		return committed, err
+	})
 }
 
 // addWriter adds a write handle to the file
