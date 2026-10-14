@@ -1,0 +1,38 @@
+seqdiag {
+  app;
+  fuse [label="bazil.org/fuse"];
+  fusermount;
+  kernel;
+  mounts;
+
+  app;
+  fuse [label="bazil.org/fuse"];
+  fusermount;
+  kernel;
+  mounts;
+
+  app -> fuse [label="Mount"];
+  fuse -> fusermount [label="spawn, pass socketpair fd"];
+  fusermount -> kernel [label="open /dev/fuse"];
+  fusermount -> kernel [label="mount(2)"];
+  kernel ->> mounts [label="mount is visible"];
+  fusermount <-- kernel [label="mount(2) returns"];
+  fuse <<-- fusermount [diagonal, label="exit, receive /dev/fuse fd"];
+
+  fuse => kernel [label="read /dev/fuse fd: initRequest"];
+  fuse -> kernel [label="write /dev/fuse fd", color=red];
+  kernel -> kernel [label="set connection\nstate to error", color=red];
+  fuse <-- kernel;
+
+  ... Mount calls Unmount to clean up ...
+  fuse -> fusermount [label="fusermount -u"];
+  fusermount -> kernel;
+  kernel <<-- mounts;
+  fusermount <-- kernel;
+  fuse <<-- fusermount [diagonal];
+
+  fuse => kernel  [label="close /dev/fuse fd"];
+  fuse <<-- kernel [diagonal, label="/dev/fuse is released"];
+
+  app <-- fuse [label="Mount returns", color=red];
+}

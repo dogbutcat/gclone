@@ -16,7 +16,25 @@ type pathMutation struct {
 	c     *Cache
 	names []string
 	once  sync.Once
+	done  chan struct{}
 }
+
+// PathBusyError identifies temporary namespace contention, not recovery failure.
+// VFS callers can release their file locks, await Done, then resolve the paths
+// again. Never wait on this channel while holding File/Item/cache locks.
+type PathBusyError struct {
+	name string
+	done <-chan struct{}
+}
+
+func (e *PathBusyError) Error() string {
+	return fmt.Sprintf("vfs cache: pathname %q is being changed", e.name)
+}
+
+func (e *PathBusyError) Unwrap() error { return syscall.EBUSY }
+
+// Done closes after the conflicting mutation releases its pathnames.
+func (e *PathBusyError) Done() <-chan struct{} { return e.done }
 
 // reservePaths fails immediately on overlap rather than waiting with VFS
 // locks held. Unrelated filenames can still be deleted/renamed concurrently.
@@ -25,8 +43,8 @@ func (c *Cache) reservePaths(names ...string) (*pathMutation, error) {
 	defer c.mu.Unlock()
 	for i, name := range names {
 		names[i] = clean(name)
-		if c.mutations[names[i]] != nil {
-			return nil, fmt.Errorf("vfs cache: pathname %q is being changed: %w", names[i], syscall.EBUSY)
+		if owner := c.mutations[names[i]]; owner != nil {
+			return nil, &PathBusyError{name: names[i], done: owner.done}
 		}
 		if item := c.item[names[i]]; item != nil {
 			item.mu.Lock()
@@ -40,7 +58,7 @@ func (c *Cache) reservePaths(names ...string) (*pathMutation, error) {
 	if c.mutations == nil {
 		c.mutations = make(map[string]*pathMutation)
 	}
-	m := &pathMutation{c: c, names: names}
+	m := &pathMutation{c: c, names: names, done: make(chan struct{})}
 	for _, name := range names {
 		c.mutations[name] = m
 	}
@@ -56,6 +74,7 @@ func (m *pathMutation) Close() {
 				delete(m.c.mutations, name)
 			}
 		}
+		close(m.done)
 	})
 }
 

@@ -14,6 +14,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dogbutcat/gclone/vfs/vfscache"
 	"github.com/dogbutcat/gclone/vfs/vfscommon"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/dirtree"
@@ -438,6 +439,12 @@ func name(p string) string {
 // note that we add new objects rather than updating old ones
 func (d *Dir) addObject(node Node) {
 	d.mu.Lock()
+	defer d.mu.Unlock()
+	d._addObject(node)
+}
+
+// _addObject adds a virtual binding with d.mu held.
+func (d *Dir) _addObject(node Node) {
 	// Check under the directory lock so an unlink cannot slip between the
 	// lifetime check and insertion. This also covers deferred openPending.
 	if f, ok := node.(*File); ok {
@@ -445,7 +452,6 @@ func (d *Dir) addObject(node Node) {
 		retired := f.unlinking || f.unlinked
 		f.mu.RUnlock()
 		if retired {
-			d.mu.Unlock()
 			return
 		}
 	}
@@ -463,7 +469,6 @@ func (d *Dir) addObject(node Node) {
 	}
 	d.virtual[leaf] = vAdd
 	fs.Debugf(d.path, "Added virtual directory entry %v: %q", vAdd, leaf)
-	d.mu.Unlock()
 }
 
 // AddVirtual adds a virtual object of name and size to the directory
@@ -603,7 +608,7 @@ func (d *Dir) _readDir() error {
 		entries = filteredEntries
 	}
 
-	err = d._readDirFromEntries(entries, nil, time.Time{})
+	err = d._readDirFromEntries(entries, nil, when)
 	if err != nil {
 		return err
 	}
@@ -727,7 +732,7 @@ func (mv manageVirtuals) add(d *Dir, name string) bool {
 // with virtual entries
 //
 // must be called with the Dir lock held
-func (mv manageVirtuals) end(d *Dir) {
+func (mv manageVirtuals) end(d *Dir, readStarted time.Time) {
 	// delete unused d.items
 	for name := range d.items {
 		if _, ok := mv[name]; !ok {
@@ -738,7 +743,7 @@ func (mv manageVirtuals) end(d *Dir) {
 				// virtually added so leave virtual item
 			default:
 				// otherwise delete it
-				delete(d.items, name)
+				d.setListingNode(name, nil, readStarted)
 			}
 		}
 	}
@@ -779,7 +784,7 @@ func (d *Dir) _readDirFromEntries(entries fs.DirEntries, dirTree dirtree.DirTree
 			obj := item
 			// Reuse old file value if it exists
 			if file, ok := node.(*File); node != nil && ok {
-				file.setObjectNoUpdate(obj)
+				file.setObjectNoUpdate(obj, when)
 			} else {
 				node = newFile(d, d.path, obj, name)
 			}
@@ -810,9 +815,9 @@ func (d *Dir) _readDirFromEntries(entries fs.DirEntries, dirTree dirtree.DirTree
 			fs.Errorf(d, "readDir error: %v", err)
 			return err
 		}
-		d.items[name] = node
+		d.setListingNode(name, node, when)
 	}
-	mv.end(d)
+	mv.end(d, when)
 	return nil
 }
 
@@ -1232,6 +1237,28 @@ func (d *Dir) RemoveName(name string) error {
 //
 // It returns EINVAL if newName isn't a single safe path element.
 func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
+	for {
+		err := d.renameAttempt(oldName, newName, destDir)
+		if errors.Is(err, errRenameBindingChanged) {
+			continue
+		}
+		var busy *vfscache.PathBusyError
+		if !errors.As(err, &busy) {
+			return err
+		}
+		// Another source can reserve an absent destination: there is no
+		// shared File to lock yet. Drop all lifecycle locks/reservations
+		// before waiting, then look up both names again. Recovery errors
+		// have no completion channel and must still be reported.
+		select {
+		case <-busy.Done():
+		case <-d.vfs.ctx.Done():
+			return d.vfs.ctx.Err()
+		}
+	}
+}
+
+func (d *Dir) renameAttempt(oldName, newName string, destDir *Dir) error {
 	// fs.Debugf(d, "BEFORE\n%s", d.dump())
 	if d.vfs.Opt.ReadOnly {
 		return EROFS
@@ -1242,29 +1269,42 @@ func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
 	oldPath := path.Join(d.path, oldName)
 	newPath := path.Join(destDir.path, newName)
 	// fs.Debugf(oldPath, "Dir.Rename to %q", newPath)
-	oldNode, err := d.stat(oldName)
+	oldNode, target, unlock, err := d.lockRename(oldName, newName, destDir)
 	if err != nil {
 		fs.Errorf(oldPath, "Dir.Rename error: %v", err)
 		return err
 	}
+	defer unlock()
+	requestedOld, requestedNew := oldName, newName
+	if target != nil && oldNode == target {
+		return nil // aliases of the same lifetime must not retire their own cache
+	} else if target != nil {
+		// For an alias, replace the resolved pathname and its cache entry.
+		// Reserving the requested spelling would leave the old cache live.
+		newName = target.Name()
+	}
+	oldName = oldNode.Name()
+	fileRenamed := false
 	var committedErr *renameCommittedError
 	switch x := oldNode.DirEntry().(type) {
 	case nil:
 		if oldFile, ok := oldNode.(*File); ok {
-			if err = oldFile.rename(d.vfs.ctx, destDir, newName); err != nil && !errors.As(err, &committedErr) {
+			if err = oldFile.rename(d.vfs.ctx, destDir, newName, target, requestedOld, requestedNew); err != nil && !errors.As(err, &committedErr) {
 				fs.Errorf(oldPath, "Dir.Rename error: %v", err)
 				return err
 			}
+			fileRenamed = true
 		} else {
 			fs.Errorf(oldPath, "Dir.Rename can't rename open file that is not a vfs.File")
 			return EPERM
 		}
 	case fs.Object:
 		if oldFile, ok := oldNode.(*File); ok {
-			if err = oldFile.rename(d.vfs.ctx, destDir, newName); err != nil && !errors.As(err, &committedErr) {
+			if err = oldFile.rename(d.vfs.ctx, destDir, newName, target, requestedOld, requestedNew); err != nil && !errors.As(err, &committedErr) {
 				fs.Errorf(oldPath, "Dir.Rename error: %v", err)
 				return err
 			}
+			fileRenamed = true
 		} else {
 			err := fmt.Errorf("Fs %q can't rename file that is not a vfs.File", d.f)
 			fs.Errorf(oldPath, "Dir.Rename error: %v", err)
@@ -1299,8 +1339,10 @@ func (d *Dir) Rename(oldName, newName string, destDir *Dir) error {
 	}
 
 	// Show moved - delete from old dir and add to new
-	d.delObject(oldName)
-	destDir.addObject(oldNode)
+	if !fileRenamed {
+		d.delObject(oldName)
+		destDir.addObject(oldNode)
+	}
 	if err = d.SetModTime(time.Now()); err != nil {
 		fs.Errorf(d, "Dir.Rename failed to set modtime on parent dir: %v", err)
 		return err

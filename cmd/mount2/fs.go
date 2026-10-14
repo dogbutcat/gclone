@@ -7,7 +7,9 @@
 package mount2
 
 import (
+	"context"
 	"os"
+	"sync"
 	"syscall"
 	"time"
 
@@ -21,17 +23,25 @@ import (
 
 // FS represents the top level filing system
 type FS struct {
-	VFS *vfs.VFS
-	f   fs.Fs
-	opt *mountlib.Options
+	VFS               *vfs.VFS
+	f                 fs.Fs
+	opt               *mountlib.Options
+	nodesMu           sync.Mutex // canonical wrappers also own the kernel data view
+	kernelCache       bool
+	kernelContext     context.Context
+	cancelKernelCache context.CancelFunc
 }
 
 // NewFS creates a pathfs.FileSystem from the fs.Fs passed in
 func NewFS(VFS *vfs.VFS, opt *mountlib.Options) *FS {
+	ctx, cancel := context.WithCancel(context.Background())
 	fsys := &FS{
-		VFS: VFS,
-		f:   VFS.Fs(),
-		opt: opt,
+		VFS:               VFS,
+		f:                 VFS.Fs(),
+		opt:               opt,
+		kernelCache:       mountlib.UsesKernelCacheControl(VFS, opt),
+		kernelContext:     ctx,
+		cancelKernelCache: cancel,
 	}
 	return fsys
 }
@@ -128,6 +138,14 @@ func translateError(err error) syscall.Errno {
 		return syscall.ENOTEMPTY
 	case vfs.ESPIPE:
 		return syscall.ESPIPE
+	case syscall.EAGAIN:
+		return syscall.EAGAIN
+	case syscall.EBUSY:
+		return syscall.EBUSY
+	case context.Canceled:
+		return syscall.EINTR
+	case context.DeadlineExceeded:
+		return syscall.ETIMEDOUT
 	case vfs.EBADF:
 		return syscall.EBADF
 	case vfs.EROFS:

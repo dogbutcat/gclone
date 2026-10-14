@@ -65,6 +65,9 @@ type File struct {
 	isLink           bool                            // file represents a symlink
 	unlinking        bool                            // deletion in progress; callbacks may update o but not publish
 	unlinked         bool                            // terminal namespace lifetime, even if handles remain open
+	objectRevision   uint64                          // object view changes, protected by mu
+	objectUpdated    time.Time                       // local publication time; never the remote object's mtime
+	cacheItem        *vfscache.Item                  // accepted cache lifetime; retained across namespace retirement
 }
 
 // newFile creates a new File
@@ -202,9 +205,9 @@ func (f *File) Node() Node {
 
 // renameDir - call when parent directory has been renamed
 func (f *File) renameDir(dPath string) {
-	f.mu.RLock()
+	f.mu.Lock()
 	f.dPath = dPath
-	f.mu.RUnlock()
+	f.mu.Unlock()
 }
 
 // applyPendingRename runs a previously set rename operation if there are no
@@ -226,15 +229,17 @@ func (f *File) applyPendingRename() {
 // rename attempts to immediately rename a file if there are no open writers.
 // Otherwise it will queue the rename operation on the remote until no writers
 // remain.
-func (f *File) rename(ctx context.Context, destDir *Dir, newName string) error {
-	f.muRW.Lock()
-	defer f.muRW.Unlock()
+// Dir.Rename holds the source and destination lifecycle locks until publication.
+// requestedOld/requestedNew retain caller spellings for post-wait resolution;
+// newName is the canonical destination used for the actual cache/backend move.
+func (f *File) rename(ctx context.Context, destDir *Dir, newName string, target *File, requestedOld, requestedNew string) error {
 	f.mu.RLock()
 	if f.unlinked {
 		f.mu.RUnlock()
 		return ENOENT
 	}
 	d := f.d
+	oldName := f.leaf
 	oldPendingRenameFun := f.pendingRenameFun
 	oldPath := f._cachePath()
 	newCacheName := f._fixCachePath(newName)
@@ -275,6 +280,8 @@ func (f *File) rename(ctx context.Context, destDir *Dir, newName string) error {
 		f.mu.Lock()
 		if o != nil {
 			f.o = o
+			f.objectRevision++
+			f.objectUpdated = time.Now()
 			f._setIsLink()
 		}
 		f.pendingRenameFun = nil
@@ -319,7 +326,17 @@ func (f *File) rename(ctx context.Context, destDir *Dir, newName string) error {
 		}
 		defer mutation.Close()
 	}
-	return f.replaceDestination(destDir, newName, func(target *File) (bool, error) {
+	d.mu.Lock()
+	resolvedSource, bindingErr := d._renameBinding(requestedOld)
+	validSource := resolvedSource == f
+	d.mu.Unlock()
+	if bindingErr != nil {
+		return bindingErr
+	}
+	if !validSource {
+		return errRenameBindingChanged
+	}
+	err := f.replaceDestination(destDir, requestedNew, target, func(target *File) (bool, error) {
 		if delayed {
 			if mutation != nil {
 				if err := mutation.Rename(nil); err != nil {
@@ -354,6 +371,14 @@ func (f *File) rename(ctx context.Context, destDir *Dir, newName string) error {
 		}
 		return committed, err
 	})
+	var committedErr *renameCommittedError
+	if err == nil || errors.As(err, &committedErr) {
+		// Publish before releasing the cache reservation. Otherwise a second
+		// rename could reserve an absent target before seeing its new owner.
+		d.delObject(oldName)
+		destDir.addObject(f)
+	}
+	return err
 }
 
 // addWriter adds a write handle to the file
@@ -392,12 +417,8 @@ func (f *File) activeWriters() int {
 	return int(f.nwriters.Load())
 }
 
-// _roundModTime rounds the time passed in to the Precision of the
-// underlying Fs
-//
-// It should be called with the lock held
-func (f *File) _roundModTime(modTime time.Time) time.Time {
-	precision := f.d.f.Precision()
+// roundModTime uses the precision of the directory captured by the stat call.
+func roundModTime(modTime time.Time, precision time.Duration) time.Time {
 	if precision == fs.ModTimeNotSupported {
 		return modTime
 	}
@@ -410,40 +431,60 @@ func (f *File) _roundModTime(modTime time.Time) time.Time {
 func (f *File) ModTime() (modTime time.Time) {
 	f.mu.RLock()
 	d, o, pendingModTime, virtualModTime := f.d, f.o, f.pendingModTime, f.virtualModTime
-	unlinked := f.unlinked
+	revision, name := f.objectRevision, f._path()
+	var item *vfscache.Item
+	if !d.vfs.Opt.NoModTime && d.vfs.Opt.CacheMode >= vfscommon.CacheModeMinimal {
+		// Select the cache lifetime before releasing File.mu. Retirement marks
+		// unlinking under this lock before replacing the pathname's cache item.
+		// A stat already in flight must not select the replacement's metadata.
+		if f.unlinked || f.unlinking {
+			item = f.cacheItem
+			if item != nil && !item.IsDirty() {
+				item = nil
+			}
+		} else {
+			item = d.vfs.cache.DirtyItem(f._cachePath())
+		}
+	}
 	f.mu.RUnlock()
+	precision := d.f.Precision()
 
 	// Set the virtual modtime up for backends which don't support setting modtime
 	//
 	// Note that we only cache modtime values that we have returned to the OS
 	// if we haven't returned a value to the OS then we can change it
 	defer func() {
-		if f.d.f.Precision() == fs.ModTimeNotSupported && (virtualModTime == nil || !virtualModTime.Equal(modTime)) {
-			f.virtualModTime = &modTime
-			fs.Debugf(f._path(), "Set virtual modtime to %v", f.virtualModTime)
+		if precision == fs.ModTimeNotSupported && (virtualModTime == nil || !virtualModTime.Equal(modTime)) {
+			f.mu.Lock()
+			// A listing or another stat may have replaced this snapshot while
+			// cache metadata was read. Do not publish into that newer lifetime.
+			if f.objectRevision == revision && f.d == d && f.virtualModTime == virtualModTime && f.pendingModTime.Equal(pendingModTime) {
+				f.virtualModTime = &modTime
+				fs.Debugf(name, "Set virtual modtime to %v", f.virtualModTime)
+			}
+			f.mu.Unlock()
 		}
 	}()
 
 	if d.vfs.Opt.NoModTime {
 		return d.ModTime()
 	}
-	// Read the modtime from a dirty item if it exists
-	if !unlinked && f.d.vfs.Opt.CacheMode >= vfscommon.CacheModeMinimal {
-		if item := f.d.vfs.cache.DirtyItem(f._cachePath()); item != nil {
-			modTime, err := item.GetModTime()
-			if err != nil {
-				fs.Errorf(f._path(), "ModTime: Item GetModTime failed: %v", err)
-			} else {
-				return f._roundModTime(modTime)
-			}
+	// Retired handles retain logical metadata and advance it on their own late
+	// writes/truncates. Clean files keep the accepted remote metadata fallback.
+	if item != nil {
+		modTime, err := item.GetModTime()
+		if err != nil {
+			fs.Errorf(f.Path(), "ModTime: Item GetModTime failed: %v", err)
+		} else {
+			return roundModTime(modTime, precision)
 		}
 	}
 	if !pendingModTime.IsZero() {
-		return f._roundModTime(pendingModTime)
+		return roundModTime(pendingModTime, precision)
 	}
 	if virtualModTime != nil && !virtualModTime.IsZero() {
-		fs.Debugf(f._path(), "Returning virtual modtime %v", f.virtualModTime)
-		return f._roundModTime(*virtualModTime)
+		fs.Debugf(name, "Returning virtual modtime %v", virtualModTime)
+		return roundModTime(*virtualModTime, precision)
 	}
 	if o == nil {
 		return time.Now()
@@ -547,6 +588,8 @@ func (f *File) _applyPendingModTime() error {
 	err := f.o.SetModTime(f.ctx, f.pendingModTime)
 	switch err {
 	case nil:
+		f.objectRevision++
+		f.objectUpdated = time.Now()
 		fs.Debugf(f.o, "Applied pending mod time %v OK", f.pendingModTime)
 		// The cache fingerprint predates the new modtime, so refresh
 		// it or the next open discards the cached data as stale.
@@ -596,6 +639,8 @@ func (f *File) setObject(o fs.Object) {
 		return
 	}
 	f.o = o
+	f.objectRevision++
+	f.objectUpdated = time.Now()
 	if f.unlinking {
 		f.mu.Unlock()
 		return
@@ -611,13 +656,19 @@ func (f *File) setObject(o fs.Object) {
 
 // Update the object but don't update the directory cache - for use by
 // the directory cache
-func (f *File) setObjectNoUpdate(o fs.Object) {
+func (f *File) setObjectNoUpdate(o fs.Object, readStarted time.Time) {
 	f.mu.Lock()
+	defer f.mu.Unlock()
+	// A listing begun before our local upload/rename completed is only an
+	// older observation. It must not roll the published object backwards.
+	if !readStarted.IsZero() && f.objectUpdated.After(readStarted) {
+		return
+	}
 	f.o = o
+	f.objectRevision++
 	f._setIsLink()
 	f.virtualModTime = nil
 	fs.Debugf(f._path(), "Reset virtual modtime")
-	f.mu.Unlock()
 }
 
 // Get the current fs.Object - may be nil
@@ -695,6 +746,10 @@ func (f *File) openWrite(flags int) (fh *WriteFileHandle, err error) {
 //
 // It uses the open flags passed in.
 func (f *File) openRW(flags int) (fh *RWFileHandle, err error) {
+	return f.openRWForKernel(flags, nil)
+}
+
+func (f *File) openRWForKernel(flags int, owner *vfscache.KernelCacheOwner) (fh *RWFileHandle, err error) {
 	f.mu.RLock()
 	d := f.d
 	f.mu.RUnlock()
@@ -705,7 +760,7 @@ func (f *File) openRW(flags int) (fh *RWFileHandle, err error) {
 	}
 	// fs.Debugf(f.Path(), "File.openRW")
 
-	fh, err = newRWFileHandle(d, f, flags)
+	fh, err = newRWFileHandleForKernel(d, f, flags, owner)
 	if err != nil {
 		fs.Debugf(f.Path(), "File.openRW failed: %v", err)
 		return nil, err
@@ -904,6 +959,12 @@ const o_SYMLINK = 0x4000_0000 //nolint:revive
 //
 // We ignore O_SYNC and O_EXCL
 func (f *File) Open(flags int) (fd Handle, err error) {
+	return f.OpenForKernel(flags, nil)
+}
+
+// OpenForKernel associates cached mutations with one canonical kernel inode.
+// Ordinary VFS callers pass through Open and have no kernel page-cache owner.
+func (f *File) OpenForKernel(flags int, owner *vfscache.KernelCacheOwner) (fd Handle, err error) {
 	defer log.Trace(f.Path(), "flags=%s", decodeOpenFlags(flags))("fd=%v, err=%v", &fd, &err)
 	var (
 		write    bool // if set need write support
@@ -916,6 +977,9 @@ func (f *File) Open(flags int) (fd Handle, err error) {
 		target, err := f.resolveNode()
 		if err != nil {
 			return nil, err
+		}
+		if file, ok := target.(*File); ok {
+			return file.OpenForKernel(flags, owner)
 		}
 		return target.Open(flags)
 	}
@@ -966,10 +1030,10 @@ func (f *File) Open(flags int) (fd Handle, err error) {
 	f.mu.RUnlock()
 	CacheMode := d.vfs.Opt.CacheMode
 	if CacheMode >= vfscommon.CacheModeMinimal && (d.vfs.cache.InUse(f.CachePath()) || d.vfs.cache.Exists(f.CachePath())) {
-		fd, err = f.openRW(flags)
+		fd, err = f.openRWForKernel(flags, owner)
 	} else if read && write {
 		if CacheMode >= vfscommon.CacheModeMinimal {
-			fd, err = f.openRW(flags)
+			fd, err = f.openRWForKernel(flags, owner)
 		} else {
 			// Open write only and hope the user doesn't
 			// want to read.  If they do they will get an
@@ -978,13 +1042,13 @@ func (f *File) Open(flags int) (fd Handle, err error) {
 		}
 	} else if write {
 		if CacheMode >= vfscommon.CacheModeWrites {
-			fd, err = f.openRW(flags)
+			fd, err = f.openRWForKernel(flags, owner)
 		} else {
 			fd, err = f.openWrite(flags)
 		}
 	} else if read {
 		if CacheMode >= vfscommon.CacheModeFull {
-			fd, err = f.openRW(flags)
+			fd, err = f.openRWForKernel(flags, owner)
 		} else {
 			fd, err = f.openRead()
 		}
@@ -1002,6 +1066,11 @@ func (f *File) Open(flags int) (fd Handle, err error) {
 
 // Truncate changes the size of the named file.
 func (f *File) Truncate(size int64) (err error) {
+	return f.TruncateForKernel(size, nil)
+}
+
+// TruncateForKernel retains the originating kernel's normal truncate behavior.
+func (f *File) TruncateForKernel(size int64, owner *vfscache.KernelCacheOwner) (err error) {
 	// make a copy of fh.writers with the lock held then unlock so
 	// we can call other file methods.
 	f.mu.Lock()
@@ -1014,7 +1083,12 @@ func (f *File) Truncate(size int64) (err error) {
 		var openWriters = len(writers)
 		fs.Debugf(f.Path(), "Truncating %d file handles", len(writers))
 		for _, h := range writers {
-			truncateErr := h.Truncate(size)
+			var truncateErr error
+			if cached, ok := h.(*RWFileHandle); ok {
+				truncateErr = cached.truncateForKernel(size, owner)
+			} else {
+				truncateErr = h.Truncate(size)
+			}
 			if truncateErr == ECLOSED {
 				// Ignore ECLOSED since file handle can get closed while this is running
 				openWriters--
@@ -1047,7 +1121,7 @@ func (f *File) Truncate(size int64) (err error) {
 	if size == 0 {
 		flags |= os.O_TRUNC
 	}
-	fh, err := f.Open(flags)
+	fh, err := f.OpenForKernel(flags, owner)
 	if err != nil {
 		return err
 	}

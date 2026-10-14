@@ -6,6 +6,7 @@
 package mount
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -31,6 +32,11 @@ func mountOptions(VFS *vfs.VFS, device string, opt *mountlib.Options) (options [
 		// Options from benchmarking in the fuse module
 		//fuse.MaxReadahead(64 * 1024 * 1024),
 		//fuse.WritebackCache(),
+	}
+	if mountlib.UsesKernelCacheControl(VFS, opt) {
+		// Local timestamps are not data-generation identifiers. Invalidation
+		// belongs to accepted external data replacement, not ordinary opens.
+		options = append(options, fuse.ExplicitInvalidateData())
 	}
 	if opt.AsyncRead {
 		options = append(options, fuse.AsyncRead())
@@ -89,6 +95,12 @@ func mount(VFS *vfs.VFS, mountpoint string, opt *mountlib.Options) (<-chan error
 	if err != nil {
 		return nil, nil, "", err
 	}
+	if mountlib.UsesKernelCacheControl(VFS, opt) && c.Features()&fuse.InitExplicitInvalidateData == 0 {
+		// Do not claim explicit coherence when INIT masked the capability out.
+		err = errors.New("VFS full requires the kernel FUSE_EXPLICIT_INVAL_DATA capability for coherent cached I/O")
+		closeErr := c.Close()
+		return nil, nil, "", errors.Join(err, closeErr, fuse.Unmount(mountpoint))
+	}
 
 	filesys := NewFS(VFS, opt)
 	filesys.server = fusefs.New(c, nil)
@@ -96,6 +108,7 @@ func mount(VFS *vfs.VFS, mountpoint string, opt *mountlib.Options) (<-chan error
 	// Serve the mount point in the background returning error to errChan
 	errChan := make(chan error, 1)
 	go func() {
+		defer filesys.cancelKernelCache()
 		err := filesys.server.Serve(filesys)
 		closeErr := c.Close()
 		if err == nil {

@@ -294,6 +294,9 @@ func (fsys *FS) OpenEx(path string, fi *fuse.FileInfo_t) (errc int) {
 	if err != nil {
 		return translateError(err)
 	}
+	if err = mountlib.PrepareHandle(handle); err != nil {
+		return translateError(err)
+	}
 
 	// If size unknown then use direct io to read
 	if entry := handle.Node().DirEntry(); entry != nil && entry.Size() < 0 {
@@ -332,6 +335,9 @@ func (fsys *FS) CreateEx(filePath string, mode uint32, fi *fuse.FileInfo_t) (err
 	flags := translateOpenFlags(fi.Flags) | os.O_CREATE
 	handle, err := file.Open(flags)
 	if err != nil {
+		return translateError(err)
+	}
+	if err = mountlib.PrepareHandle(handle); err != nil {
 		return translateError(err)
 	}
 	fi.Fh = fsys.openHandle(handle)

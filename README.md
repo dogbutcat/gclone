@@ -42,7 +42,8 @@ libfuse-dev, gcc
 
 The VFS and its command adapters are synced with rclone v1.75.2 in this
 repository to isolate unlinked and rename-overwritten files from old handles,
-metadata updates and delayed writeback. Builds use the
+metadata updates and delayed writeback. Local consistency guards also keep
+delayed directory snapshots from discarding newly uploaded cache data. Builds use the
 normal `go build` command and the official rclone module dependency.
 
 ```mermaid

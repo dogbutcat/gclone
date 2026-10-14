@@ -1,0 +1,46 @@
+seqdiag {
+  // seqdiag -T svg -o doc/mount.svg doc/mount.seq
+  app;
+  fuse [label="bazil.org/fuse"];
+  fusermount;
+  kernel;
+  mounts;
+
+  app -> fuse [label="Mount"];
+  fuse -> fusermount [label="spawn, pass socketpair fd"];
+  fusermount -> kernel [label="open /dev/fuse"];
+  fusermount -> kernel [label="mount(2)"];
+  kernel ->> mounts [label="mount is visible"];
+  fusermount <-- kernel [label="mount(2) returns"];
+  fuse <<-- fusermount [diagonal, label="exit, receive /dev/fuse fd"];
+
+  fuse => kernel [label="read /dev/fuse fd: initRequest"];
+  fuse => kernel [label="write /dev/fuse fd: initResponse"];
+
+  app <-- fuse [label="Mount returns"];
+
+  app -> fuse [label="fs.Serve"];
+  fuse => kernel [label="read /dev/fuse fd"];
+  fuse => app [label="FS/Node/Handle methods"];
+  fuse => kernel [label="write /dev/fuse fd"];
+  ... repeat ...
+
+  ... shutting down ...
+  fuse -> kernel [label="read /dev/fuse fd"];
+  app -> fuse [label="Unmount"];
+  fuse -> fusermount [label="fusermount -u"];
+  fusermount -> kernel;
+  kernel <<-- mounts;
+  fusermount <-- kernel;
+  fuse <<-- fusermount [diagonal];
+  app <-- fuse [label="Unmount returns"];
+
+  // actually triggers before above
+  fuse <-- kernel [diagonal, label="/dev/fuse EOF"];
+  app <-- fuse [label="fs.Serve returns"];
+
+  app -> fuse [label="conn.Close"];
+  fuse => kernel  [label="close /dev/fuse fd"];
+  fuse <<-- kernel [diagonal, label="/dev/fuse is released"];
+  app <-- fuse;
+}

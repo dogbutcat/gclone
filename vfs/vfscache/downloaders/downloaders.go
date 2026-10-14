@@ -285,6 +285,11 @@ func (dls *Downloaders) _closeWaiters(err error) {
 //
 // call with lock held
 func (dls *Downloaders) _ensureDownloader(r ranges.Range) (err error) {
+	// Close cancels this group permanently. A borrower racing with Close must
+	// not append a waiter after its background dispatcher has already exited.
+	if err := dls.ctx.Err(); err != nil {
+		return err
+	}
 	// defer log.Trace(dls.src, "r=%v", r)("err=%v", &err)
 
 	// The window includes potentially unread data in the buffer

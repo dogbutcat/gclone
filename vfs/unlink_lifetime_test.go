@@ -134,18 +134,39 @@ func TestUnlinkExcludesDestinationRename(t *testing.T) {
 	require.NoError(t, err)
 	root, err := v.Root()
 	require.NoError(t, err)
+	done := make(chan error, 1)
 	removed, err := v.cache.Unlink("target", func(fs.Object) error {
-		assert.ErrorIs(t, root.Rename("source", "target", root), syscall.EBUSY)
-		assert.Equal(t, "source", source.Path(), "admission failure must precede File identity change")
+		go func() { done <- root.Rename("source", "target", root) }()
+		select {
+		case err := <-done:
+			t.Errorf("rename returned while unlink owned the pathname: %v", err)
+		case <-time.After(100 * time.Millisecond):
+		}
+		assert.Equal(t, "source", source.Path(), "waiting must precede File identity change")
 		return os.ErrPermission
 	})
 	require.ErrorIs(t, err, os.ErrPermission)
 	assert.False(t, removed)
-	for _, name := range []string{"source", "target"} {
-		data, err := v.ReadFile(name)
+	select {
+	case err := <-done:
 		require.NoError(t, err)
-		assert.Equal(t, name+" bytes", string(data))
+	case <-time.After(3 * time.Second):
+		t.Fatal("rename failed to resume after unlink rollback")
 	}
+	data, err := v.ReadFile("target")
+	require.NoError(t, err)
+	assert.Equal(t, "source bytes", string(data))
+}
+
+func TestRenameReservationExcludesUnlink(t *testing.T) {
+	opt := vfscommon.Opt
+	opt.CacheMode, opt.WriteBack = vfscommon.CacheModeFull, 0
+	opt.HandleCaching, opt.CachePollInterval = 0, 0
+	r, v := newTestVFSOpt(t, &opt)
+	r.WriteObject(context.Background(), "source", "source bytes", t1)
+	r.WriteObject(context.Background(), "target", "target bytes", t1)
+	root, err := v.Root()
+	require.NoError(t, err)
 	mutation, err := v.cache.BeginRename("source", "target")
 	require.NoError(t, err)
 	assert.ErrorIs(t, root.RemoveName("target"), syscall.EBUSY)

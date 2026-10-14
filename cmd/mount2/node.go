@@ -6,6 +6,7 @@ package mount2
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path"
 	"syscall"
@@ -21,8 +22,9 @@ import (
 // Node represents a directory or file
 type Node struct {
 	fusefs.Inode
-	node vfs.Node
-	fsys *FS
+	node        vfs.Node
+	fsys        *FS
+	kernelCache *mountlib.KernelCache
 }
 
 // Node types must be InodeEmbedders
@@ -30,6 +32,8 @@ var _ fusefs.InodeEmbedder = (*Node)(nil)
 
 // newNode creates a new fusefs.Node from a vfs Node
 func newNode(fsys *FS, vfsNode vfs.Node) (node *Node) {
+	fsys.nodesMu.Lock()
+	defer fsys.nodesMu.Unlock()
 	// Check the vfsNode to see if it has a fuse Node cached
 	// We must return the same fuse nodes for vfs Nodes
 	node, ok := vfsNode.Aux(fsys).(*Node)
@@ -40,9 +44,20 @@ func newNode(fsys *FS, vfsNode vfs.Node) (node *Node) {
 		node: vfsNode,
 		fsys: fsys,
 	}
+	if fsys.kernelCache && !vfsNode.IsDir() {
+		node.kernelCache = mountlib.NewKernelCacheWithContext(fsys.kernelContext)
+	}
 	// Cache the node for later
 	vfsNode.SetAux(fsys, node)
 	return node
+}
+
+// cacheControl uses one data view per canonical inode, including CREATE.
+func (n *Node) cacheControl() *mountlib.KernelCache {
+	if entry := n.node.DirEntry(); entry != nil && entry.Size() < 0 {
+		return nil
+	}
+	return n.kernelCache
 }
 
 // String used for pretty printing.
@@ -125,7 +140,11 @@ func (n *Node) Setattr(ctx context.Context, f fusefs.FileHandle, in *fuse.SetAtt
 	n.fsys.setAttrOut(n.node, out)
 	size, ok := in.GetSize()
 	if ok {
-		err = n.node.Truncate(int64(size))
+		if control := n.cacheControl(); control != nil {
+			err = n.node.(*vfs.File).TruncateForKernel(int64(size), control.Owner())
+		} else {
+			err = n.node.Truncate(int64(size))
+		}
 		if err != nil {
 			return translateError(err)
 		}
@@ -151,8 +170,18 @@ func (n *Node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fu
 	defer log.Trace(n, "flags=%#o", flags)("errno=%v", &errno)
 	// fuse flags are based off syscall flags as are os flags, so
 	// should be compatible
-	handle, err := n.node.Open(int(flags))
+	control := n.cacheControl()
+	var handle vfs.Handle
+	var err error
+	if control != nil {
+		handle, err = n.node.(*vfs.File).OpenForKernel(int(flags), control.Owner())
+	} else {
+		handle, err = n.node.Open(int(flags))
+	}
 	if err != nil {
+		return nil, 0, translateError(err)
+	}
+	if err = mountlib.PrepareHandle(handle); err != nil {
 		return nil, 0, translateError(err)
 	}
 	// If size unknown then use direct io to read
@@ -161,6 +190,21 @@ func (n *Node) Open(ctx context.Context, flags uint32) (fh fusefs.FileHandle, fu
 	}
 	if n.fsys.opt.DirectIO {
 		fuseFlags |= fuse.FOPEN_DIRECT_IO
+	}
+	if control != nil && fuseFlags&fuse.FOPEN_DIRECT_IO == 0 {
+		keep, prepareErr := control.Prepare(ctx, handle, func() error {
+			status := n.NotifyContent(0, 0)
+			if status == 0 || status == syscall.ENOENT {
+				return nil
+			}
+			return status
+		})
+		if prepareErr != nil {
+			return nil, 0, translateError(errors.Join(prepareErr, handle.Close()))
+		}
+		if keep {
+			fuseFlags |= fuse.FOPEN_KEEP_CACHE
+		}
 	}
 	return newFileHandle(handle, n.fsys), fuseFlags, 0
 }
@@ -367,28 +411,18 @@ func (n *Node) Create(ctx context.Context, name string, flags uint32, mode uint3
 	if err != nil {
 		return nil, nil, 0, translateError(err)
 	}
-	handle, err := file.Open(osFlags)
-	if err != nil {
-		return nil, nil, 0, translateError(err)
-	}
-	fh = newFileHandle(handle, n.fsys)
-	// FIXME
-	// fh = &fusefs.WithFlags{
-	// 	File: fh,
-	// 	//FuseFlags: fuse.FOPEN_NONSEEKABLE,
-	// 	OpenFlags: flags,
-	// }
-
-	// Find the created node
-	vfsNode, errno := n.lookupVfsNodeInDir(name)
+	n.fsys.setEntryOut(file, out)
+	newNode := newNode(n.fsys, file)
+	fs.Debugf(nil, "attr=%#v", out.Attr)
+	newInode := n.NewInode(ctx, newNode, fusefs.StableAttr{Mode: out.Attr.Mode, Ino: newNode.node.Inode()})
+	fh, fuseFlags, errno = newNode.Open(ctx, uint32(osFlags))
 	if errno != 0 {
 		return nil, nil, 0, errno
 	}
-	n.fsys.setEntryOut(vfsNode, out)
-	newNode := newNode(n.fsys, vfsNode)
-	fs.Debugf(nil, "attr=%#v", out.Attr)
-	newInode := n.NewInode(ctx, newNode, fusefs.StableAttr{Mode: out.Attr.Mode, Ino: newNode.node.Inode()})
-	return newInode, fh, 0, 0
+	// OPEN may truncate an existing name found after a negative kernel lookup.
+	// Publish its accepted size, blocks and times, not the pre-open snapshot.
+	n.fsys.setEntryOut(file, out)
+	return newInode, fh, fuseFlags, 0
 }
 
 var _ = (fusefs.NodeCreater)((*Node)(nil))

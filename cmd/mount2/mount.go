@@ -6,6 +6,7 @@
 package mount2
 
 import (
+	"errors"
 	"fmt"
 	"runtime"
 	"time"
@@ -27,15 +28,16 @@ func init() {
 // man mount.fuse for more info and note the -o flag for other options
 func mountOptions(fsys *FS, f fs.Fs, opt *mountlib.Options) (mountOpts *fuse.MountOptions) {
 	mountOpts = &fuse.MountOptions{
-		AllowOther:         fsys.opt.AllowOther,
-		FsName:             opt.DeviceName,
-		Name:               "rclone",
-		DisableXAttrs:      true,
-		Debug:              fsys.opt.DebugFUSE,
-		MaxReadAhead:       int(fsys.opt.MaxReadAhead),
-		MaxWrite:           1024 * 1024, // Linux v4.20+ caps requests at 1 MiB
-		DisableReadDirPlus: true,
-		IDMappedMount:      opt.AllowIDMap,
+		AllowOther:               fsys.opt.AllowOther,
+		FsName:                   opt.DeviceName,
+		Name:                     "rclone",
+		DisableXAttrs:            true,
+		Debug:                    fsys.opt.DebugFUSE,
+		MaxReadAhead:             int(fsys.opt.MaxReadAhead),
+		MaxWrite:                 1024 * 1024, // Linux v4.20+ caps requests at 1 MiB
+		DisableReadDirPlus:       true,
+		IDMappedMount:            opt.AllowIDMap,
+		ExplicitDataCacheControl: fsys.kernelCache,
 
 		// RememberInodes: true,
 		// SingleThreaded: true,
@@ -254,6 +256,7 @@ func mount(VFS *vfs.VFS, mountpoint string, opt *mountlib.Options) (<-chan error
 	// Serve the mount point in the background returning error to errChan
 	errs := make(chan error, 1)
 	go func() {
+		defer fsys.cancelKernelCache()
 		server.Serve()
 		errs <- nil
 	}()
@@ -262,6 +265,10 @@ func mount(VFS *vfs.VFS, mountpoint string, opt *mountlib.Options) (<-chan error
 	err = server.WaitMount()
 	if err != nil {
 		return nil, nil, "", err
+	}
+	if fsys.kernelCache && server.KernelSettings().Flags64()&fuse.CAP_EXPLICIT_INVAL_DATA == 0 {
+		err = errors.New("VFS full requires the kernel FUSE_EXPLICIT_INVAL_DATA capability for coherent cached I/O")
+		return nil, nil, "", errors.Join(err, server.Unmount())
 	}
 
 	fs.Debugf(f, "Mount started")

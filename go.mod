@@ -1,5 +1,8 @@
 module github.com/dogbutcat/gclone
 
+// Local FUSE cache-coherence option; provenance and removal: vfs/UPSTREAM.txt.
+replace bazil.org/fuse => ./internal/thirdparty/bazil-fuse
+
 go 1.26.0
 
 godebug x509negativeserial=1

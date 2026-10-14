@@ -8,6 +8,7 @@ package mount
 
 import (
 	"context"
+	"sync"
 	"syscall"
 
 	"bazil.org/fuse"
@@ -22,9 +23,13 @@ import (
 // FS represents the top level filing system
 type FS struct {
 	*vfs.VFS
-	f      fs.Fs
-	opt    *mountlib.Options
-	server *fusefs.Server
+	f                 fs.Fs
+	opt               *mountlib.Options
+	server            *fusefs.Server
+	nodesMu           sync.Mutex // canonical wrapper publication; never held over VFS I/O
+	kernelCache       bool       // full-cache data lifetime is controlled explicitly
+	kernelContext     context.Context
+	cancelKernelCache context.CancelFunc
 }
 
 // Check interface satisfied
@@ -32,10 +37,14 @@ var _ fusefs.FS = (*FS)(nil)
 
 // NewFS makes a new FS
 func NewFS(VFS *vfs.VFS, opt *mountlib.Options) *FS {
+	ctx, cancel := context.WithCancel(context.Background())
 	fsys := &FS{
-		VFS: VFS,
-		f:   VFS.Fs(),
-		opt: opt,
+		VFS:               VFS,
+		f:                 VFS.Fs(),
+		opt:               opt,
+		kernelCache:       mountlib.UsesKernelCacheControl(VFS, opt),
+		kernelContext:     ctx,
+		cancelKernelCache: cancel,
 	}
 	return fsys
 }
@@ -47,7 +56,28 @@ func (f *FS) Root() (node fusefs.Node, err error) {
 	if err != nil {
 		return nil, translateError(err)
 	}
-	return &Dir{root, f}, nil
+	return f.node(root), nil
+}
+
+// node returns one FUSE wrapper per VFS lifetime. Different wrappers for the
+// same VFS node would create different kernel lock/page-cache identities.
+func (f *FS) node(node vfs.Node) fusefs.Node {
+	f.nodesMu.Lock()
+	defer f.nodesMu.Unlock()
+	if cached, ok := node.Aux(f).(fusefs.Node); ok {
+		return cached
+	}
+	var cached fusefs.Node
+	switch n := node.(type) {
+	case *vfs.File:
+		cached = &File{File: n, fsys: f, kernelCache: mountlib.NewKernelCacheWithContext(f.kernelContext)}
+	case *vfs.Dir:
+		cached = &Dir{Dir: n, fsys: f}
+	default:
+		panic("bad type")
+	}
+	node.SetAux(f, cached)
+	return cached
 }
 
 // Check interface satisfied
@@ -104,6 +134,12 @@ func translateError(err error) error {
 		return fuse.Errno(syscall.EINVAL)
 	case vfs.ELOOP:
 		return fuse.Errno(syscall.ELOOP)
+	case syscall.EAGAIN:
+		return fuse.Errno(syscall.EAGAIN)
+	case context.Canceled:
+		return fuse.Errno(syscall.EINTR)
+	case context.DeadlineExceeded:
+		return fuse.Errno(syscall.ETIMEDOUT)
 	}
 	fs.Errorf(nil, "IO error: %v", err)
 	return err

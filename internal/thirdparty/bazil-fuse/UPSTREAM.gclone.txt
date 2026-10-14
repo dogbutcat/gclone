@@ -1,0 +1,24 @@
+Purpose: removable repository-local descriptor fsync dispatch for bazil FUSE.
+
+Source: bazil.org/fuse v0.0.0-20230120002735-62a210ff1fd5.
+UPSTREAM.gclone.json preserves the original source hashes. LICENSE and
+copyright notices remain intact. The only modified upstream file is fs/serve.go.
+
+LOCAL CHANGE
+HandleFsyncer resolves the FsyncRequest handle before invoking application code.
+It releases the server registry lock before the callback, preserves NodeFsyncer
+as a fallback, and reports invalid handles and callback errors. gclone's native
+mount uses the accepted descriptor's Sync, so unrelated closes do not delay it.
+
+The full-cache data policy is implemented in gclone cmd/mountlib and VFS.
+It uses the existing ExplicitInvalidateData API; no automatic-invalidation
+option or default capability change is added to this library.
+
+The root go.mod replacement points to this directory. No remote fork, build
+preparation step, or GitHub Actions workflow change is required.
+
+REMOVAL
+When upstream provides equivalent descriptor fsync dispatch, update native
+mount to that API, remove the local replace and this directory, and run the
+handle dispatch/error tests, Linux cache/lifecycle tests and normal/cmount
+cross-platform builds. Preserve the independent VFS WAL, unlink and rename fixes.

@@ -58,25 +58,39 @@ import (
 // The Info field is written to the backing store to store status
 type Item struct {
 	// read only
-	c               *Cache                   // cache this is part of
-	mu              sync.Mutex               // protect the variables
-	cond            sync.Cond                // synchronize with cache cleaner
-	name            string                   // name in the VFS
-	opens           int                      // number of times file is open
-	downloaders     *downloaders.Downloaders // a record of the downloaders in action - may be nil
-	o               fs.Object                // object we are caching - may be nil
-	fd              *os.File                 // handle we are using to read and write to the file
-	info            Info                     // info about the file to persist to backing store
-	writeBackID     writeback.Handle         // id of any writebacks in progress
-	pendingAccesses int                      // number of threads - cache reset not allowed if not zero
-	modified        bool                     // set if the file has been modified since the last Open
-	beingReset      bool                     // cache cleaner is resetting the cache file, access not allowed
-	graceTimer      *time.Timer              // timer for delayed close after grace period
-	closing         chan struct{}            // non-nil while a grace-period close is tearing the handle down, closed when done
-	unlinking       bool                     // remote deletion is draining writeback; pathname is still reserved
-	unlinked        bool                     // terminal lifetime: only the existing descriptor may be used
-	storeFn         StoreFn                  // last callback, retained to resume writeback if unlink fails
-	unlinkErr       error                    // failed rollback: readable recovery data, further writes must fail
+	c                 *Cache                                 // cache this is part of
+	mu                sync.Mutex                             // protect the variables
+	cond              sync.Cond                              // synchronize with cache cleaner
+	name              string                                 // name in the VFS
+	opens             int                                    // number of times file is open
+	downloaders       *downloaders.Downloaders               // a record of the downloaders in action - may be nil
+	o                 fs.Object                              // object we are caching - may be nil
+	fd                *os.File                               // handle we are using to read and write to the file
+	info              Info                                   // info about the file to persist to backing store
+	writeBackID       writeback.Handle                       // id of any writebacks in progress
+	pendingAccesses   int                                    // number of threads - cache reset not allowed if not zero
+	modified          bool                                   // set if the file has been modified since the last Open
+	beingReset        bool                                   // cache cleaner is resetting the cache file, access not allowed
+	graceTimer        *time.Timer                            // timer for delayed close after grace period
+	closing           chan struct{}                          // non-nil while a grace-period close is tearing the handle down, closed when done
+	unlinking         bool                                   // remote deletion is draining writeback; pathname is still reserved
+	unlinked          bool                                   // terminal lifetime: only the existing descriptor may be used
+	publishing        bool                                   // _store callback owns the newly uploaded object
+	mustRevalidate    bool                                   // confirmed absence survives callback completion and cache resets
+	objectEpoch       uint64                                 // observation and namespace ownership, protected by mu
+	localCreation     bool                                   // a committed local owner with no remote object yet
+	sourceMissing     bool                                   // uncached original bytes lost their remote source
+	sourceFingerprint string                                 // original range source, independent of destination metadata
+	sourceChanging    bool                                   // downloader drain before accepting another source
+	downloadEpoch     uint64                                 // permanently fences callbacks from replaced downloaders
+	writeEpoch        uint64                                 // foreground mutation ownership across unlocked IO
+	pendingWrites     int                                    // physical writes and dirty marking not yet completed
+	kernelViews       map[*KernelCacheOwner]*kernelViewState // accepted kernel views; protected by mu
+	kernelPins        int                                    // descriptor leases whose cached view must survive Reset
+	kernelDataEpoch   uint64                                 // accepted data replacement, not upload or local mutation
+	pendingLookups    int                                    // unlocked metadata requests pin this cache lifetime
+	storeFn           StoreFn                                // last callback, retained to resume writeback if unlink fails
+	unlinkErr         error                                  // failed rollback: readable recovery data, further writes must fail
 }
 
 // Info is persisted to backing store
@@ -105,11 +119,13 @@ const (
 	RemovedNotInUse                         // Item not used. Remove instead of reset
 	ResetFailed                             // Reset failed with an error
 	ResetComplete                           // Reset completed successfully
+	SkippedRevalidation                     // Remote ownership must be resolved by a foreground operation
 )
 
 func (rr ResetResult) String() string {
 	return [...]string{"Dirty item skipped", "In-access item skipped", "Empty item skipped",
-		"Grace period item skipped", "Not-in-use item removed", "Item reset failed", "Item reset completed"}[rr]
+		"Grace period item skipped", "Not-in-use item removed", "Item reset failed", "Item reset completed",
+		"Remote revalidation pending"}[rr]
 }
 
 func (v Items) Len() int      { return len(v) }
@@ -185,7 +201,7 @@ func newItem(c *Cache, name string) (item *Item) {
 func (item *Item) inUse() bool {
 	item.mu.Lock()
 	defer item.mu.Unlock()
-	return item.opens != 0 || item.info.Dirty || item.unlinking || item.unlinked
+	return item.opens != 0 || item.info.Dirty || item.pendingLookups != 0 || item.unlinking || item.unlinked
 }
 
 // getDiskSize returns the size on disk (approximately) of the item
@@ -340,12 +356,27 @@ func (item *Item) _truncateToCurrentSize() (err error) {
 // extended and the extended data will be filled with zeros. The
 // object will be marked as dirty in this case also.
 func (item *Item) Truncate(size int64) (err error) {
+	return item.TruncateForKernel(size, nil)
+}
+
+// TruncateForKernel identifies a mutation already reflected in that kernel view.
+func (item *Item) TruncateForKernel(size int64, owner *KernelCacheOwner) (err error) {
+	defer func() {
+		if err == nil {
+			err = item.SyncKernelViews(item.c.ctx)
+		}
+	}()
 	item.preAccess()
 	defer item.postAccess()
 	item.mu.Lock()
 	defer item.mu.Unlock()
+	item._beginWrite()
+	defer item._endWrite()
 	if item.unlinkErr != nil {
 		return item.unlinkErr
+	}
+	if item._foreignKernelWriter(owner) {
+		return errObjectViewChanged
 	}
 
 	if item.fd == nil {
@@ -379,6 +410,9 @@ func (item *Item) Truncate(size int64) (err error) {
 		changed = item.o == nil
 	}
 	if changed {
+		if size != oldSize {
+			item._kernelMutation(owner)
+		}
 		item._dirty()
 	}
 
@@ -482,7 +516,9 @@ func (item *Item) Dirty() {
 	item.preAccess()
 	defer item.postAccess()
 	item.mu.Lock()
+	item._beginWrite()
 	item._dirty()
+	item._endWrite()
 	item.mu.Unlock()
 }
 
@@ -529,13 +565,33 @@ func (item *Item) _createFile(osPath string) (err error) {
 
 // Open the local file from the object passed in.  Wraps open()
 // to provide recovery from out of space error.
-func (item *Item) Open(o fs.Object) (err error) {
+func (item *Item) Open(o fs.Object) error {
+	_, err := item.openObject(o, true, false)
+	return err
+}
+
+// OpenWithObject returns the object actually accepted by cache validation.
+// The caller may reconcile its File view after all Item locks are released.
+// allowCreate distinguishes a new local file from an existing file which a
+// backend refresh proves has disappeared. Dirty local data remains available.
+func (item *Item) OpenWithObject(o fs.Object, allowCreate bool) (fs.Object, error) {
+	return item.openObject(o, allowCreate, allowCreate)
+}
+
+func (item *Item) openObject(o fs.Object, allowCreate, claimCreate bool) (resolved fs.Object, err error) {
+	return item.openObjectForKernel(o, allowCreate, claimCreate, nil)
+}
+
+func (item *Item) openObjectForKernel(o fs.Object, allowCreate, claimCreate bool, kernel *kernelOpen) (resolved fs.Object, err error) {
 	for range fs.GetConfig(item.c.ctx).LowLevelRetries {
 		item.preAccess()
-		err = item.open(o)
+		resolved, err = item.openWithKernel(o, allowCreate, claimCreate, kernel)
 		item.postAccess()
 		if err == nil {
 			break
+		}
+		if errors.Is(err, errObjectViewChanged) {
+			continue
 		}
 		fs.Errorf(item.name, "vfs cache: failed to open item: %v", err)
 		if !fserrors.IsErrNoSpace(err) && err.Error() != "no space left on device" {
@@ -544,15 +600,62 @@ func (item *Item) Open(o fs.Object) (err error) {
 		}
 		item.c.KickCleaner()
 	}
-	return err
+	return resolved, err
 }
 
 // Open the local file from the object passed in (which may be nil)
 // which implies we are about to create the file
-func (item *Item) open(o fs.Object) (err error) {
-	// defer log.Trace(o, "item=%p", item)("err=%v", &err)
+func (item *Item) open(o fs.Object) error {
+	_, err := item.openWithObject(o, true, false)
+	return err
+}
+
+func (item *Item) openWithObject(o fs.Object, allowCreate, claimCreate bool) (fs.Object, error) {
+	return item.openWithKernel(o, allowCreate, claimCreate, nil)
+}
+
+func (item *Item) openWithKernel(o fs.Object, allowCreate, claimCreate bool, kernel *kernelOpen) (fs.Object, error) {
 	item.mu.Lock()
 	defer item.mu.Unlock()
+	if kernel != nil && kernel.writable && item._foreignKernelWriter(kernel.owner) {
+		return nil, errObjectViewChanged
+	}
+	var obs objectObservation
+	if err := item._open(o, allowCreate, &obs); err != nil {
+		return nil, err
+	}
+	if !item._ownsObservation(obs) {
+		item._abortObjectOpen()
+		return nil, errObjectViewChanged
+	}
+	if kernel != nil && kernel.writable && item._foreignKernelWriter(kernel.owner) {
+		item._abortObjectOpen()
+		return nil, errObjectViewChanged
+	}
+	if claimCreate && item.o == nil {
+		if err := item._commitCreate(obs); err != nil {
+			item._abortObjectOpen()
+			return nil, err
+		}
+	} else if obs.verified && item.o != nil && !item.publishing {
+		item.mustRevalidate = false
+	}
+	if obs.sourceReady {
+		item.sourceMissing = false
+		item.sourceFingerprint = ""
+	}
+	if kernel != nil {
+		kernel.lease = item._bindKernelView(kernel.owner, kernel.writable)
+	}
+	return item.o, nil
+}
+
+// _open requires Item.mu; its existing unlock/relock operations preserve that
+// ownership at return so openWithObject captures the validated object atomically.
+func (item *Item) _open(o fs.Object, allowCreate bool, observation *objectObservation) (err error) {
+	for item.sourceChanging || item.pendingWrites != 0 {
+		item.cond.Wait()
+	}
 	if item.unlinkErr != nil {
 		return item.unlinkErr
 	}
@@ -579,7 +682,7 @@ func (item *Item) open(o fs.Object) (err error) {
 		return fmt.Errorf("vfs cache item: createItemDir failed: %w", err)
 	}
 
-	err = item._checkObject(o)
+	*observation, err = item._checkObjectView(o, allowCreate)
 	if err != nil {
 		return fmt.Errorf("vfs cache item: check object failed: %w", err)
 	}
@@ -617,6 +720,11 @@ func (item *Item) open(o fs.Object) (err error) {
 			_ = dls.Close(nil)
 			item.mu.Lock()
 		}
+		if !item._ownsObservation(*observation) {
+			item.opens--
+			return errObjectViewChanged
+		}
+
 		// _checkObject sized the old fd, so size the new file here
 		// or GetSize reads 0 and ReadAt returns unfetched zeros.
 		err = item._truncateToCurrentSize()
@@ -657,7 +765,7 @@ func (item *Item) open(o fs.Object) (err error) {
 
 	// Create the downloaders
 	if item.o != nil {
-		item.downloaders = downloaders.New(item.c.ctx, item, item.c.opt, item.name, item.o)
+		item.downloaders = item._newDownloaders()
 	}
 
 	return err
@@ -681,8 +789,33 @@ func (item *Item) _store(ctx context.Context, storeFn StoreFn) (err error) {
 	if item.unlinked || item.unlinking {
 		return context.Canceled
 	}
+	if item.pendingWrites != 0 {
+		return errObjectViewChanged
+	}
+	if item.mustRevalidate {
+		// A confirmed absence invalidates the destination ID, not pending
+		// local bytes. Resolve the writeback target again before Copy.
+		fresh, lookupErr := item._lookupObject(ctx)
+		switch {
+		case errors.Is(lookupErr, fs.ErrorObjectNotFound):
+			item._observeAbsence()
+			if !item.info.Dirty {
+				return os.ErrNotExist
+			}
+			item._acceptObject(nil)
+		case lookupErr != nil:
+			return lookupErr
+		case fresh == nil:
+			return errors.New("vfs cache: revalidate returned nil object without an error")
+		default:
+			item._acceptObject(fresh)
+		}
+	}
 
 	// Transfer the temp file to the remote
+	if item.info.Dirty && !item._hasWritebackData() {
+		return fmt.Errorf("vfs cache: writeback has unavailable source ranges: %w", fs.ErrorObjectNotFound)
+	}
 	cacheObj, err := item.c.fcache.NewObject(ctx, item.name)
 	if err != nil && err != fs.ErrorObjectNotFound {
 		return fmt.Errorf("vfs cache: failed to find cache file: %w", err)
@@ -696,13 +829,14 @@ func (item *Item) _store(ctx context.Context, storeFn StoreFn) (err error) {
 	// Object has disappeared if cacheObj == nil
 	if cacheObj != nil {
 		o, name := item.o, item.name
+		observation := item._objectObservation()
 		unlockMutexForCall(&item.mu, func() {
 			o, err = operations.Copy(ctx, item.c.fremote, o, name, cacheObj)
 		})
 		// Copy can return an object together with context.Canceled after a
 		// backend has committed the upload. The unlink owner still needs it.
 		if item.unlinking && o != nil && o.Remote() == name {
-			item.o = o
+			item._acceptObject(o)
 		}
 		if err != nil {
 			if errors.Is(err, fs.ErrorCantUploadEmptyFiles) {
@@ -711,7 +845,17 @@ func (item *Item) _store(ctx context.Context, storeFn StoreFn) (err error) {
 			}
 			return fmt.Errorf("vfs cache: failed to transfer file from cache to remote: %w", err)
 		}
-		item.o = o
+		if item.unlinking || item.unlinked {
+			return context.Canceled
+		}
+		if !item._ownsObservation(observation) {
+			item.mustRevalidate = true
+			return errObjectViewChanged
+		}
+		item.objectEpoch++ // Update may mutate an existing object in place.
+		item._acceptObject(o)
+		item.sourceMissing = false
+		item.sourceFingerprint = ""
 		item._updateFingerprint()
 	}
 	// Unlink may have begun while Copy was running. Keep the returned object
@@ -727,9 +871,11 @@ func (item *Item) _store(ctx context.Context, storeFn StoreFn) (err error) {
 		fs.Debugf(item.name, "vfs cache: writeback object to VFS layer")
 		// Write the object back to the VFS layer last with mutex unlocked
 		o := item.o
-		item.mu.Unlock()
-		storeFn(o)
-		item.mu.Lock()
+		func() {
+			item.publishing = true
+			defer func() { item.publishing = false }()
+			unlockMutexForCall(&item.mu, func() { storeFn(o) })
+		}()
 	}
 	if item.unlinking || item.unlinked {
 		return context.Canceled
@@ -832,10 +978,18 @@ func (item *Item) _actualClose(storeFn StoreFn, syncWriteBack bool) (err error) 
 	// FIXME It would be nice to do this asynchronously however it
 	// would require keeping the downloaders alive after the item
 	// has been closed
-	if item.info.Dirty && item.o != nil && !item.unlinked {
-		err = item._ensure(0, item.info.Size)
+	if item.info.Dirty && !item.unlinked {
+		if (item.o == nil || item.sourceMissing) && !item._present() {
+			err = fs.ErrorObjectNotFound
+		} else if item.o != nil {
+			err = item._ensure(0, item.info.Size)
+		}
 		if err != nil {
-			return fmt.Errorf("vfs cache: failed to download missing parts of cache file: %w", err)
+			// A later open must be able to recover the still-dirty cache,
+			// rather than fail _createFile on an orphaned descriptor and erase it.
+			saveErr := item._save()
+			item._closeUnusedHandle()
+			return errors.Join(fmt.Errorf("vfs cache: failed to download missing parts of cache file: %w", err), saveErr)
 		}
 	}
 
@@ -960,49 +1114,9 @@ func (item *Item) reload(ctx context.Context) error {
 // It ensures the file is the correct size for the object.
 //
 // call with lock held
-func (item *Item) _checkObject(o fs.Object) error {
-	if o == nil {
-		if item.info.Fingerprint != "" {
-			// no remote object && local object
-			// remove local object unless dirty
-			if !item.info.Dirty {
-				item._remove("stale (remote deleted)")
-			} else {
-				fs.Debugf(item.name, "vfs cache: remote object has gone but local object modified - keeping it")
-			}
-			//} else {
-			// no remote object && no local object
-			// OK
-		}
-	} else {
-		remoteFingerprint := fs.Fingerprint(item.c.ctx, o, item.c.opt.FastFingerprint)
-		fs.Debugf(item.name, "vfs cache: checking remote fingerprint %q against cached fingerprint %q", remoteFingerprint, item.info.Fingerprint)
-		if item.info.Fingerprint != "" {
-			// remote object && local object
-			if remoteFingerprint != item.info.Fingerprint {
-				if !item.info.Dirty {
-					fs.Debugf(item.name, "vfs cache: removing cached entry as stale (remote fingerprint %q != cached fingerprint %q)", remoteFingerprint, item.info.Fingerprint)
-					item._remove("stale (remote is different)")
-					item.info.Fingerprint = remoteFingerprint
-				} else {
-					fs.Debugf(item.name, "vfs cache: remote object has changed but local object modified - keeping it (remote fingerprint %q != cached fingerprint %q)", remoteFingerprint, item.info.Fingerprint)
-				}
-			}
-		} else {
-			// remote object && no local object
-			// Set fingerprint
-			item.info.Fingerprint = remoteFingerprint
-		}
-		item.info.Size = o.Size()
-	}
-	item.o = o
-
-	err := item._truncateToCurrentSize()
-	if err != nil {
-		return fmt.Errorf("vfs cache item: open truncate failed: %w", err)
-	}
-
-	return nil
+func (item *Item) _checkObject(o fs.Object, allowCreate bool) error {
+	_, err := item._checkObjectView(o, allowCreate)
+	return err
 }
 
 // WrittenBack checks to see if the item has been written back or not
@@ -1055,6 +1169,12 @@ func (item *Item) _removeMeta(reason string) {
 //
 // call with lock held
 func (item *Item) _remove(reason string) (wasWriting bool) {
+	return item._removeCachedData(reason, true)
+}
+
+// Reset of clean disk ranges preserves the accepted logical data generation.
+// General eviction may admit a new source on the next open and retires it.
+func (item *Item) _removeCachedData(reason string, retireKernelView bool) (wasWriting bool) {
 	if item.unlinking || item.unlinked {
 		return false
 	}
@@ -1062,6 +1182,10 @@ func (item *Item) _remove(reason string) (wasWriting bool) {
 	item.mu.Unlock()
 	wasWriting = item.c.writeback.Remove(item.writeBackID)
 	item.mu.Lock()
+	item.objectEpoch++
+	if retireKernelView {
+		item._kernelReplacement()
+	}
 	item.info.clean()
 	item._removeFile(reason)
 	item._removeMeta(reason)
@@ -1087,7 +1211,7 @@ func (item *Item) RemoveNotInUse(maxAge time.Duration, emptyOnly bool) (removed 
 	spaceFreed = 0
 	removed = false
 
-	if item.opens != 0 || item.info.Dirty || item.graceTimer != nil || item.unlinking || item.unlinked {
+	if item.opens != 0 || item.info.Dirty || item.graceTimer != nil || item.pendingLookups != 0 || item.unlinking || item.unlinked {
 		return
 	}
 
@@ -1121,7 +1245,7 @@ func (item *Item) RemoveNotInUse(maxAge time.Duration, emptyOnly bool) (removed 
 func (item *Item) Reset() (rr ResetResult, spaceFreed int64, err error) {
 	item.mu.Lock()
 	defer item.mu.Unlock()
-	if item.unlinking || item.unlinked {
+	if item.unlinking || item.unlinked || item.pendingLookups != 0 || item._kernelWriter() {
 		return SkippedPendingAccess, 0, nil
 	}
 
@@ -1154,6 +1278,13 @@ func (item *Item) Reset() (rr ResetResult, spaceFreed int64, err error) {
 	   not reduce below quota. */
 	if item.pendingAccesses > 0 {
 		return SkippedPendingAccess, 0, nil
+	}
+
+	// The cleaner holds Cache.mu. Do not resolve remote identity from Reset,
+	// or a single remote lookup would stall every cache user. Retain the data,
+	// descriptor and absence guard until an ordinary open/writeback resolves it.
+	if item.mustRevalidate || item.publishing {
+		return SkippedRevalidation, 0, nil
 	}
 
 	/* Do not need to reset an empty cache file unless it was being reset and the reset failed.
@@ -1215,13 +1346,13 @@ func (item *Item) Reset() (rr ResetResult, spaceFreed int64, err error) {
 	spaceFreed = item.info.Rs.Size()
 
 	// This should not be possible.  We get here only if cache data is not dirty.
-	if item._remove("cache out of space, item is clean") {
+	if item._removeCachedData("cache out of space, item is clean", false) {
 		fs.Errorf(item.o, "vfs cache item removed when it was writing/uploaded")
 	}
 
 	// can we have an item with no dirty data (so that we can get here) and nil item.o at the same time?
 	fso := item.o
-	checkErr(item._checkObject(fso))
+	checkErr(item._checkObject(fso, false))
 	if err != nil {
 		item.beingReset = false
 		item.cond.Broadcast()
@@ -1231,7 +1362,7 @@ func (item *Item) Reset() (rr ResetResult, spaceFreed int64, err error) {
 	osPath := item.c.toOSPath(item.name)
 	checkErr(item._createFile(osPath))
 	if err != nil {
-		item._remove("cache reset failed on _createFile, removed cache data file")
+		item._removeCachedData("cache reset failed on _createFile, removed cache data file", false)
 		item.fd = nil // This allows a new Reset redo to have a clean state to deal with
 		if !fserrors.IsErrNoSpace(err) {
 			item.beingReset = false
@@ -1242,7 +1373,7 @@ func (item *Item) Reset() (rr ResetResult, spaceFreed int64, err error) {
 
 	// Create the downloaders
 	if item.o != nil {
-		item.downloaders = downloaders.New(item.c.ctx, item, item.c.opt, item.name, item.o)
+		item.downloaders = item._newDownloaders()
 	}
 
 	/* The item will stay in the beingReset state if we get an error that prevents us from
@@ -1313,6 +1444,9 @@ func (item *Item) FindMissing(r ranges.Range) (outr ranges.Range) {
 //
 // call with the item lock held
 func (item *Item) _ensure(offset, size int64) (err error) {
+	for item.sourceChanging || item.pendingWrites != 0 {
+		item.cond.Wait()
+	}
 	// defer log.Trace(item.name, "offset=%d, size=%d", offset, size)("err=%v", &err)
 	if offset+size > item.info.Size {
 		size = item.info.Size - offset
@@ -1324,6 +1458,12 @@ func (item *Item) _ensure(offset, size int64) (err error) {
 			return nil
 		}
 		return os.ErrNotExist
+	}
+	if item.sourceMissing {
+		if size <= 0 || item.info.Rs.Present(ranges.Range{Pos: offset, Size: size}) {
+			return nil // serve cached bytes without scheduling replacement read-ahead
+		}
+		return fmt.Errorf("vfs cache: original source ranges are unavailable: %w", fs.ErrorObjectNotFound)
 	}
 	// Check to see if we are about to request data beyond of the size of
 	// the remote object. This can happen if the the cached range metadata
@@ -1347,34 +1487,72 @@ func (item *Item) _ensure(offset, size int64) (err error) {
 		return errors.New("no space left on device")
 	} */
 	fs.Debugf(nil, "vfs cache: looking for range=%+v in %+v - present %v", r, item.info.Rs, present)
+	observation := item._objectObservation()
 	item.mu.Unlock()
 	defer item.mu.Lock()
+	item.mu.Lock()
+	for item.sourceChanging || item.pendingWrites != 0 {
+		item.cond.Wait()
+	}
+	if !item._ownsObservation(observation) {
+		item.mu.Unlock()
+		return errObjectViewChanged
+	}
 	if present {
-		// This is a file we are writing so no downloaders needed
-		if item.downloaders == nil {
+		dls := item.downloaders
+		downloadEpoch := item.downloadEpoch
+		item.mu.Unlock()
+		if dls == nil {
 			return nil
 		}
-		// Otherwise start the downloader for the future if required
-		return item.downloaders.EnsureDownloader(r)
+		err := dls.EnsureDownloader(r)
+		item.mu.Lock()
+		changed := downloadEpoch != item.downloadEpoch
+		item.mu.Unlock()
+		if changed {
+			return errObjectViewChanged
+		}
+		return err
 	}
 	if item.downloaders == nil {
-		// Downloaders can be nil here if the file has been
-		// renamed, so need to make some more downloaders
-		// OK to call downloaders constructor with item.mu held
-
-		// item.o can also be nil under some circumstances
-		// See: https://github.com/rclone/rclone/issues/6190
-		// See: https://github.com/rclone/rclone/issues/6235
+		// A fallback lookup is another object observation. It cannot install
+		// a result for a name or lifetime which changed while Item.mu was free.
 		if item.o == nil {
-			o, err := item.c.fremote.NewObject(item.c.ctx, item.name)
-			if err != nil {
-				return err
+			observation := item._objectObservation()
+			item.mu.Unlock()
+			o, lookupErr := item.c.fremote.NewObject(item.c.ctx, observation.name)
+			item.mu.Lock()
+			if !item._ownsObservation(observation) {
+				item.mu.Unlock()
+				return errObjectViewChanged
 			}
-			item.o = o
+			if lookupErr != nil {
+				if errors.Is(lookupErr, fs.ErrorObjectNotFound) {
+					item._observeAbsence()
+				}
+				item.mu.Unlock()
+				return lookupErr
+			}
+			if o == nil {
+				item.mu.Unlock()
+				return errors.New("vfs cache: revalidate returned nil object without an error")
+			}
+			item._acceptObject(o)
 		}
-		item.downloaders = downloaders.New(item.c.ctx, item, item.c.opt, item.name, item.o)
+		// Construction does not call downloader methods or acquire their lock.
+		item.downloaders = item._newDownloaders()
 	}
-	return item.downloaders.Download(r)
+	dls := item.downloaders
+	downloadEpoch := item.downloadEpoch
+	item.mu.Unlock()
+	err = dls.Download(r)
+	item.mu.Lock()
+	changed := downloadEpoch != item.downloadEpoch
+	item.mu.Unlock()
+	if changed {
+		return errObjectViewChanged
+	}
+	return err
 }
 
 // _written marks the (offset, size) as present in the backing file
@@ -1440,11 +1618,17 @@ func (item *Item) GetModTime() (modTime time.Time, err error) {
 	// defer log.Trace(item.name, "modTime=%v", modTime)("")
 	item.mu.Lock()
 	defer item.mu.Unlock()
+	// The cache file's physical mtime also advances when missing ranges are
+	// downloaded. Dirty data has an application-owned timestamp, persisted on
+	// close and used for upload; report that same value throughout its lifetime.
+	if item.info.Dirty {
+		return item.info.ModTime, nil
+	}
 	fi, err := item._stat()
 	if err == nil {
 		modTime = fi.ModTime()
 	}
-	return modTime, nil
+	return modTime, err
 }
 
 // ReadAt bytes from the file at off
@@ -1457,6 +1641,9 @@ func (item *Item) ReadAt(b []byte, off int64) (n int, err error) {
 		item.postAccess()
 		if err == nil || err == io.EOF {
 			break
+		}
+		if errors.Is(err, errObjectViewChanged) {
+			continue
 		}
 		fs.Errorf(item.name, "vfs cache: failed to _ensure cache %v", err)
 		if !fserrors.IsErrNoSpace(err) && err.Error() != "no space left on device" {
@@ -1510,6 +1697,11 @@ func (item *Item) readAt(b []byte, off int64) (n int, err error) {
 
 // WriteAt bytes to the file at off
 func (item *Item) WriteAt(b []byte, off int64) (n int, err error) {
+	return item.WriteAtForKernel(b, off, nil)
+}
+
+// WriteAtForKernel keeps the writer's page-cache view and invalidates other views.
+func (item *Item) WriteAtForKernel(b []byte, off int64, owner *KernelCacheOwner) (n int, err error) {
 	item.preAccess()
 	defer item.postAccess()
 	item.mu.Lock()
@@ -1522,30 +1714,37 @@ func (item *Item) WriteAt(b []byte, off int64) (n int, err error) {
 		item.mu.Unlock()
 		return 0, errors.New("vfs cache item WriteAt: internal error: didn't Open file")
 	}
-	item.mu.Unlock()
-	// Do the writing with Item.mu unlocked
+	if len(b) != 0 && item._foreignKernelWriter(owner) {
+		item.mu.Unlock()
+		return 0, errObjectViewChanged
+	}
+	item._beginWrite()
+	// Publish a local write and its sparse ranges atomically with size readers.
+	// Otherwise GetSize can observe the extended fd before the zero-filled gap
+	// is recorded, making a new SHM page look like missing remote data.
+	oldSize := item.info.Size
 	n, err = item.fd.WriteAt(b, off)
 	if err == nil && n != len(b) {
 		err = fmt.Errorf("short write: tried to write %d but only %d written", len(b), n)
 	}
-	item.mu.Lock()
-	item._written(off, int64(n))
 	if n > 0 {
+		item._kernelMutation(owner)
+		item._written(off, int64(n))
+		if off > oldSize {
+			item._written(oldSize, off-oldSize)
+		}
+		if end := off + int64(n); end > item.info.Size {
+			item.info.Size = end
+		}
+		// _dirty can unlock while canceling writeback. All physical-write
+		// bookkeeping must already be visible before that happens.
 		item._dirty()
 	}
-	end := off + int64(n)
-	// Writing off the end of the file so need to make some
-	// zeroes.  we do this by showing that we have written to the
-	// new parts of the file.
-	if off > item.info.Size {
-		item._written(item.info.Size, off-item.info.Size)
-		item._dirty()
-	}
-	// Update size
-	if end > item.info.Size {
-		item.info.Size = end
-	}
+	item._endWrite()
 	item.mu.Unlock()
+	if n > 0 {
+		err = errors.Join(err, item.SyncKernelViews(item.c.ctx))
+	}
 	return n, err
 }
 
@@ -1558,6 +1757,17 @@ func (item *Item) WriteAt(b []byte, off int64) (n int, err error) {
 // bytes which were processed but not actually written to the file.
 func (item *Item) WriteAtNoOverwrite(b []byte, off int64) (n int, skipped int, err error) {
 	item.mu.Lock()
+	defer item.mu.Unlock()
+	return item._writeAtNoOverwrite(b, off)
+}
+
+func (item *Item) _writeAtNoOverwrite(b []byte, off int64) (n int, skipped int, err error) {
+	if item.sourceChanging {
+		return 0, 0, errObjectViewChanged
+	}
+	if item.sourceMissing {
+		return 0, 0, fmt.Errorf("vfs cache: downloader no longer owns the source: %w", fs.ErrorObjectNotFound)
+	}
 
 	var (
 		// Range we wish to write
@@ -1599,7 +1809,6 @@ func (item *Item) WriteAtNoOverwrite(b []byte, off int64) (n int, skipped int, e
 			break
 		}
 	}
-	item.mu.Unlock()
 	return n, skipped, err
 }
 
@@ -1661,8 +1870,9 @@ func (item *Item) rename(name string, newName string, newObj fs.Object) (err err
 		}
 	}
 	if err == nil {
+		item.objectEpoch++
 		item.name = newName
-		item.o = newObj
+		item._acceptObject(newObj)
 		item._updateFingerprint()
 	}
 

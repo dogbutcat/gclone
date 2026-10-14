@@ -82,3 +82,11 @@ func (fh *FileHandle) Release(ctx context.Context, req *fuse.ReleaseRequest) (er
 	defer log.Trace(fh, "")("err=%v", &err)
 	return translateError(fh.Handle.Release())
 }
+
+// Fsync uses the accepted request handle instead of waiting on sibling closes.
+func (fh *FileHandle) Fsync(ctx context.Context, req *fuse.FsyncRequest) (err error) {
+	defer log.Trace(fh, "")("err=%v", &err)
+	return translateError(fh.Handle.Sync())
+}
+
+var _ fusefs.HandleFsyncer = (*FileHandle)(nil)

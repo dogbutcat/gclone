@@ -63,11 +63,117 @@ FUNCTIONAL FIX
   before restart. No cloud-backend atomic rename guarantee is added here.
   See TestRename*, TestCacheRename*, rename_lifetime.go, rename_recovery.go.
 
+  Rename-overwrite waits for ordinary destination open/close operations rather
+  than exporting lifecycle-lock contention as EBUSY. Source and target locks
+  are acquired in inode order before cache reservations; path bindings are
+  revalidated after waiting and locks remain held through publication. The
+  destination binding is replaced under one directory lock so lookup cannot
+  observe a deletion gap. Retirement and recovery still isolate old handles.
+  Overlapping cache reservations expose a completion signal: rename drops
+  file locks before waiting, retries resolved pathnames, and keeps its own
+  reservation through directory publication. Recovery failures still return
+  errors. Revalidation uses resolved names, including case/Unicode aliases.
+  It also resolves the caller's original names again while locked: a node
+  that moved between lookup and its Name snapshot cannot redirect the call
+  to that node's new pathname. Deferred prerequisites trigger a final source
+  and destination binding check before any new move or retirement.
+  Keep TestRenameOverRevalidatingReader and rename_lock_test.go when dropping
+  this local coordination after an upstream implementation passes them.
+
+  mod1.6.6 fences upload/listing object views. A directory snapshot begun
+  before a local publication cannot overwrite or remove that newer File.
+  The fence uses local publication time, never remote mtime ordering, and
+  covers ordinary and recursive listing application. Cache open confirms a
+  conflicting clean snapshot with backend NewObject before invalidating data;
+  refresh errors preserve the cache. Matching snapshots outside publication
+  keep the local fast path; genuine external changes remain visible.
+  A resolved cache object is reconciled into its File only if that File's
+  object revision has not changed, after releasing all Item locks. Read-only
+  reconciliation does not advance the local-publication timestamp.
+  Opens during the upload callback revalidate even matching fingerprints:
+  a same-content replacement can have a different backend ID. An older File
+  snapshot cannot replace the upload result, while a confirmed replacement
+  remains the next writeback target. Dirty local bytes remain available.
+  Cache opens carry explicit creation intent from O_CREATE and VFS ReadOnly.
+  Confirmed clean deletion without that intent returns ENOENT before changing
+  cached data or publishing a nil File object. Repeated deferred reads fail
+  consistently; normal directory refresh can remove the old directory entry.
+  Allowed creation marks the item dirty even without Write, drains any old
+  callback first, and retains existing dirty bytes rather than truncating them.
+  See upload_consistency_test.go, object_view_test.go, deleted_open_test.go,
+  publication_open_test.go and vfscache/{object_view,publication_revalidation}_test.go.
+  Drop these guards only with passing upstream upload/listing, external-target,
+  creation-intent, unlink and rename lifetime regressions.
+
+  Confirmed absence remains an Item-owned revalidation requirement after the
+  callback ends, including matching fingerprints and other deferred handles.
+  Observation serials fence destructive invalidation and acceptance across
+  writeback/downloader/cache-map unlocks. Ordinary matching opens retain the
+  accepted object identity; equal metadata cannot restore an older backend ID.
+  Explicit creation commits inside Item after descriptor creation and upload
+  draining. Reset and legacy cache opens cannot discharge creation ownership.
+
+  Writeback destination and missing original ranges are separate obligations.
+  A vanished or changed source cannot supply uncached bytes: reads/writeback
+  fail while retaining dirty data. Failed close tears down unused descriptors
+  so reopening can recover. A fresh original-source fingerprint or explicit
+  writes can restore the missing data. Destination metadata refresh cannot
+  rewrite that saved source fingerprint. Existing recovery of an already-written
+  local tail beyond a surviving remote's EOF remains supported.
+  Cached reads do not schedule prefetch from an unavailable original source.
+  Source replacement drains downloaders, and downloader writers carry a
+  separate epoch so late callbacks remain invalid after the source guard clears.
+  Closed downloader groups reject new waiters after dispatcher shutdown.
+  A clean replacement becomes its own source only after successful acceptance.
+  Foreground writes/truncates carry a separate mutation serial through unlocked
+  IO and dirty marking. Invalidation and creation recheck that ownership after
+  every drain, so a newly acknowledged write cannot be discarded as clean data.
+  See vfscache/object_state.go, object_state_test.go, absence_dirty_test.go
+  source_download_test.go and source_mutation_test.go.
+  Observation conflicts retain syscall.EAGAIN on platforms that define it.
+  Plan 9 uses a distinct error sentinel because its syscall package has no
+  EAGAIN. The object_state_errno.go and object_state_plan9.go adapters belong
+  to this local patch and are removed with it.
+
+  Remote revalidation in open and writeback runs outside Item.mu. The request
+  retains its original name, object/write generations and publication/dirty,
+  descriptor and downloader state; changed ownership rejects the reply before
+  absence handling or cache mutation. Pending lookups pin their cache lifetime
+  while directory status checks proceed. Cache maintenance skips guarded items
+  rather than requesting remote metadata while holding Cache.mu.
+  See vfscache/metadata_lookup.go, metadata_lookup_test.go and
+  metadata_latency_test.go. The latter covers normal asynchronous publication
+  with deferred read-only/O_RDWR handles and the synchronous-close control.
+
+
+  Linux full-cache kernel coherence requires negotiated FUSE_EXPLICIT_INVAL_DATA.
+  Both mount drivers reject an unsupported negotiation before serving this mode.
+  Explicit direct-I/O/writeback-cache options retain their existing I/O policy.
+  The Linux full-cache mount adapters keep canonical inode wrappers and pin
+  accepted file descriptors before acknowledging OPEN/CREATE. Local sparse
+  writes publish their size and zero extents together; logical dirty mtime
+  remains stable during range downloads. Retired File metadata uses its own
+  retained Item, never a replacement at the same pathname. Failed truncation
+  publishes only the accepted cache size.
+
+  Explicit kernel data retirement separates local writes/upload metadata from
+  externally accepted source changes. Kernel owners retain their notification
+  obligations across descriptor close, cancelled opens and notification errors.
+  A mount-owned queue retries failed retirement independently of new opens;
+  foreign writes wait for affected views after releasing Item.mu. Writable
+  kernel leases defer source replacement until pending mmap writes can finish.
+  Clean disk-range reclamation preserves the accepted data generation and stays
+  available to long-lived read-only descriptors. Native per-handle fsync uses
+  the repository-local bazil module recorded in internal/thirdparty/bazil-fuse.
+  Same-size/same-mtime replacement, cancelled opens, failed notification retry,
+  foreign readers, readonly reclamation and rejected truncation have separate
+  regression tests. Keep these when dropping the local override.
+
 UPGRADE AND REMOVE
   When upgrading rclone, compare these copied packages against that release;
   UPSTREAM.json distinguishes original copies from the lifecycle patch.
-  Keep local imports until an upstream release passes both the unlink and
-  rename-overwrite regressions, including held read-only and grace handles.
+  Keep local imports until an upstream release passes upload/listing, unlink
+  and rename-overwrite regressions, including held read-only and grace handles.
   To drop the override after verification:
     1. Restore the upstream imports in cmd/all/all.go and backend/all/all.go.
     2. Restore upstream cmount imports in existing cmd/selfupdate code/tests.
@@ -90,3 +196,21 @@ LIMITS
   Crash/rollback leftovers in cache-dir/vfs-unlinked need manual recovery.
   The regression scope is unlink, late writeback and same-name replacement
   ownership. Application-specific database durability is outside this patch.
+  Conflict revalidation relies on the backend's current-path NewObject view;
+  it does not add universal backend linearizability or multi-host SQLite locks.
+  Observation and source guards are per-Item memory state, not durable pathname
+  tombstones. A new Item/process has the existing cache-reload semantics.
+
+  Cached mount opens now prepare the backing lifetime before OS acknowledgement,
+  preserving deferred mmap writes after unlink/overwrite without reconnecting old
+  handles to a new pathname. Lazy non-mount VFS callers keep their original API.
+  Linux mount publishes stable VFS inode numbers and one wrapper per node;
+  lookup/create must share a kernel lock and page-cache identity. Its fsync
+  callback now calls owned handle Sync and propagates local-cache errors.
+
+  Dirty cache timestamps come from application metadata rather than physical
+  cache writes/downloads. Local pwrite, zero-extent accounting and logical size
+  publication share Item.mu; bookkeeping completes before cancellation can
+  release that lock. Empty or failed writes do not create phantom zero extents.
+  Keep modtime_lifetime_test.go, sparse_write_stat_test.go, mountlib/handle_test.go
+  and mount/{inode_lifetime,open_sync}_test.go when removing these fixes.

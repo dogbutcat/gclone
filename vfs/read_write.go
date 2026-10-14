@@ -3,6 +3,7 @@
 package vfs
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -19,10 +20,12 @@ import (
 // transferred to the remote.
 type RWFileHandle struct {
 	// read only variables
-	file  *File
-	d     *Dir
-	flags int            // open flags
-	item  *vfscache.Item // cached file item
+	file        *File
+	d           *Dir
+	flags       int                        // open flags
+	item        *vfscache.Item             // cached file item
+	kernelOwner *vfscache.KernelCacheOwner // nil for callers without a kernel cache
+	kernelLease *vfscache.KernelCacheLease // accepted descriptor view, released on close
 
 	// read write variables protected by mutex
 	mu          sync.Mutex
@@ -43,6 +46,10 @@ func (fh *RWFileHandle) Unlock() error {
 }
 
 func newRWFileHandle(d *Dir, f *File, flags int) (fh *RWFileHandle, err error) {
+	return newRWFileHandleForKernel(d, f, flags, nil)
+}
+
+func newRWFileHandleForKernel(d *Dir, f *File, flags int, owner *vfscache.KernelCacheOwner) (fh *RWFileHandle, err error) {
 	defer log.Trace(f.Path(), "")("err=%v", &err)
 	// get an item to represent this from the cache
 	item := d.vfs.cache.Item(f.CachePath())
@@ -55,16 +62,21 @@ func newRWFileHandle(d *Dir, f *File, flags int) (fh *RWFileHandle, err error) {
 	}
 
 	fh = &RWFileHandle{
-		file:  f,
-		d:     d,
-		flags: flags,
-		item:  item,
+		file:        f,
+		d:           d,
+		flags:       flags,
+		item:        item,
+		kernelOwner: owner,
 	}
 
 	// truncate immediately if O_TRUNC is set or O_CREATE is set and file doesn't exist
 	if !fh.readOnly() && (fh.flags&os.O_TRUNC != 0 || (fh.flags&os.O_CREATE != 0 && !exists)) {
 		err = fh.Truncate(0)
 		if err != nil {
+			if fh.opened {
+				_ = item.Close(nil)
+				fh.kernelLease.Close()
+			}
 			return nil, fmt.Errorf("cache open with O_TRUNC: failed to truncate: %w", err)
 		}
 		// we definitely need to write back the item even if we don't write to it
@@ -106,11 +118,21 @@ func (fh *RWFileHandle) openPending() (err error) {
 		return ENOENT
 	}
 
-	o := fh.file.getObject()
-	err = fh.item.Open(o)
+	o, revision := fh.file.objectSnapshot()
+	allowCreate := fh.flags&os.O_CREATE != 0 && !fh.d.vfs.Opt.ReadOnly
+	var resolved fs.Object
+	if fh.kernelOwner != nil {
+		resolved, fh.kernelLease, err = fh.item.OpenForKernel(o, allowCreate, fh.kernelOwner, !fh.readOnly())
+	} else {
+		resolved, err = fh.item.OpenWithObject(o, allowCreate)
+	}
 	if err != nil {
 		return fmt.Errorf("open RW handle failed to open cache file: %w", err)
 	}
+	fh.file.mu.Lock()
+	fh.file.cacheItem = fh.item
+	fh.file.mu.Unlock()
+	fh.file.reconcileObject(resolved, revision)
 
 	size := fh._size() // update size in file and read size
 	if fh.flags&os.O_APPEND != 0 {
@@ -122,6 +144,44 @@ func (fh *RWFileHandle) openPending() (err error) {
 	fh.opened = true
 	fh.d.addObject(fh.file) // make sure the directory has this object in it now
 	return nil
+}
+
+// Prepare acquires the cache lifetime before an OS adapter acknowledges open.
+// It does not fetch missing data, and must precede any possible unlink/rename.
+func (fh *RWFileHandle) Prepare() error {
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
+	if fh.closed {
+		return ECLOSED
+	}
+	return fh.openPending()
+}
+
+// KernelCacheVersion identifies the accepted cache view, never a current pathname.
+func (fh *RWFileHandle) KernelCacheVersion() (vfscache.KernelCacheVersion, bool, error) {
+	fh.mu.Lock()
+	defer fh.mu.Unlock()
+	if fh.closed {
+		return vfscache.KernelCacheVersion{}, false, ECLOSED
+	}
+	if fh.kernelLease == nil {
+		return vfscache.KernelCacheVersion{}, false, nil
+	}
+	version, err := fh.kernelLease.Version()
+	return version, true, err
+}
+
+// SyncKernelViews never holds the handle mutex while a kernel notification
+// waits for an already-issued READ to finish.
+func (fh *RWFileHandle) SyncKernelViews(ctx context.Context) error {
+	fh.mu.Lock()
+	if fh.closed {
+		fh.mu.Unlock()
+		return ECLOSED
+	}
+	item := fh.item
+	fh.mu.Unlock()
+	return item.SyncKernelViews(ctx)
 }
 
 // String converts it to printable
@@ -174,6 +234,7 @@ func (fh *RWFileHandle) close() (err error) {
 	fh.updateSize()
 	if fh.opened {
 		err = fh.item.Close(fh.file.setObject)
+		fh.kernelLease.Close()
 		fh.opened = false
 	} else {
 		// apply any pending mod times if any
@@ -357,7 +418,7 @@ func (fh *RWFileHandle) _writeAt(b []byte, off int64, release bool) (n int, err 
 		// Do the writing with fh.mu unlocked
 		fh.mu.Unlock()
 	}
-	n, err = fh.item.WriteAt(b, off)
+	n, err = fh.item.WriteAtForKernel(b, off, fh.kernelOwner)
 	if release {
 		fh.mu.Lock()
 	}
@@ -397,16 +458,21 @@ func (fh *RWFileHandle) WriteString(s string) (n int, err error) {
 // Truncate file to given size
 //
 // Call with mutex held
-func (fh *RWFileHandle) _truncate(size int64) (err error) {
+func (fh *RWFileHandle) _truncate(size int64, owner *vfscache.KernelCacheOwner) (err error) {
 	if size == fh._size() {
-		return nil
+		return fh.item.SyncKernelViews(fh.file.ctx)
 	}
-	fh.file.setSize(size)
-	return fh.item.Truncate(size)
+	err = fh.item.TruncateForKernel(size, owner)
+	fh.updateSize()
+	return err
 }
 
 // Truncate file to given size
 func (fh *RWFileHandle) Truncate(size int64) (err error) {
+	return fh.truncateForKernel(size, fh.kernelOwner)
+}
+
+func (fh *RWFileHandle) truncateForKernel(size int64, owner *vfscache.KernelCacheOwner) (err error) {
 	fh.mu.Lock()
 	defer fh.mu.Unlock()
 	if fh.closed {
@@ -415,7 +481,7 @@ func (fh *RWFileHandle) Truncate(size int64) (err error) {
 	if err = fh.openPending(); err != nil {
 		return err
 	}
-	return fh._truncate(size)
+	return fh._truncate(size, owner)
 }
 
 // Sync commits the current contents of the file to stable storage. Typically,
@@ -428,9 +494,6 @@ func (fh *RWFileHandle) Sync() error {
 		return ECLOSED
 	}
 	if !fh.opened {
-		return nil
-	}
-	if fh.readOnly() {
 		return nil
 	}
 	return fh.item.Sync()

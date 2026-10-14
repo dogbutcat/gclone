@@ -786,7 +786,7 @@ See: https://developers.google.com/workspace/drive/api/guides/limited-expansive-
 				Value: "true",
 				Help:  "Get GCP IAM credentials from the environment (env vars or IAM).",
 			}},
-		//-----------------------------------------------------------
+			//-----------------------------------------------------------
 		}, {
 			Name: "service_account_file",
 			Help: "Service Account Credentials JSON file path.\n\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login." + env.ShellExpandHelp,
@@ -1124,6 +1124,7 @@ func (f *Fs) rollingSvc(ctx context.Context) {
 		fmt.Println("roll sa file: ", newSa, " failed: ", err)
 	}
 }
+
 //-----------------------------------------------------------
 
 // parseParse parses a drive 'url'
@@ -2273,7 +2274,7 @@ func (f *Fs) List(ctx context.Context, dir string) (entries fs.DirEntries, err e
 func (f *Fs) ListP(ctx context.Context, dir string, callback fs.ListRCallback) error {
 	list := list.NewHelper(callback)
 	entriesAdded := 0
-	directoryID, err := f.dirCache.FindDir(ctx, dir, false)
+	directoryID, err := f.findDirectory(ctx, dir, false)
 	if err != nil {
 		return err
 	}
@@ -2492,7 +2493,7 @@ func (f *Fs) listRRunner(ctx context.Context, wg *sync.WaitGroup, in chan listRE
 // Don't implement this unless you have a more efficient way
 // of listing recursively that doing a directory traversal.
 func (f *Fs) ListR(ctx context.Context, dir string, callback fs.ListRCallback) (err error) {
-	directoryID, err := f.dirCache.FindDir(ctx, dir, false)
+	directoryID, err := f.findDirectory(ctx, dir, false)
 	if err != nil {
 		return err
 	}
@@ -2751,7 +2752,7 @@ func (f *Fs) itemToDirEntry(ctx context.Context, remote string, item *drive.File
 //
 // Used to create new objects
 func (f *Fs) createFileInfo(ctx context.Context, remote string, modTime time.Time) (*drive.File, error) {
-	leaf, directoryID, err := f.dirCache.FindPath(ctx, remote, true)
+	leaf, directoryID, err := f.findParentDirectory(ctx, remote, true)
 	if err != nil {
 		return nil, err
 	}
@@ -2930,7 +2931,7 @@ func (f *Fs) MergeDirs(ctx context.Context, dirs []fs.Directory) error {
 
 // Mkdir creates the container if it doesn't exist
 func (f *Fs) Mkdir(ctx context.Context, dir string) error {
-	_, err := f.dirCache.FindDir(ctx, dir, true)
+	_, err := f.findDirectory(ctx, dir, true)
 	return err
 }
 
@@ -2943,11 +2944,11 @@ func (f *Fs) Mkdir(ctx context.Context, dir string) error {
 // It returns the directory that was created.
 func (f *Fs) MkdirMetadata(ctx context.Context, dir string, metadata fs.Metadata) (fs.Directory, error) {
 	var info *drive.File
-	dirID, err := f.dirCache.FindDir(ctx, dir, false)
+	dirID, err := f.findDirectory(ctx, dir, false)
 	if err == fs.ErrorDirNotFound {
 		// Directory does not exist so create it
 		var leaf, parentID string
-		leaf, parentID, err = f.dirCache.FindPath(ctx, dir, true)
+		leaf, parentID, err = f.findParentDirectory(ctx, dir, true)
 		if err != nil {
 			return nil, err
 		}
@@ -2975,7 +2976,7 @@ func (f *Fs) MkdirMetadata(ctx context.Context, dir string, metadata fs.Metadata
 
 // DirSetModTime sets the directory modtime for dir
 func (f *Fs) DirSetModTime(ctx context.Context, dir string, modTime time.Time) error {
-	dirID, err := f.dirCache.FindDir(ctx, dir, false)
+	dirID, err := f.findDirectory(ctx, dir, false)
 	if err != nil {
 		return err
 	}
@@ -3271,7 +3272,7 @@ func (f *Fs) cleanupTeamDrive(ctx context.Context, dir string, directoryID strin
 // CleanUp empties the trash
 func (f *Fs) CleanUp(ctx context.Context) error {
 	if f.isTeamDrive {
-		directoryID, err := f.dirCache.FindDir(ctx, "", false)
+		directoryID, err := f.findDirectory(ctx, "", false)
 		if err != nil {
 			return err
 		}
@@ -3434,7 +3435,7 @@ func (f *Fs) Move(ctx context.Context, src fs.Object, remote string) (fs.Object,
 
 // PublicLink adds a "readable by anyone with link" permission on the given file or folder.
 func (f *Fs) PublicLink(ctx context.Context, remote string, expire fs.Duration, unlink bool) (link string, err error) {
-	id, err := f.dirCache.FindDir(ctx, remote, false)
+	id, err := f.findDirectory(ctx, remote, false)
 	if err == nil {
 		fs.Debugf(f, "attempting to share directory '%s'", remote)
 		id = shortcutID(id)
@@ -3918,7 +3919,7 @@ func (f *Fs) unTrash(ctx context.Context, dir string, directoryID string, recurs
 
 // Untrash dir
 func (f *Fs) unTrashDir(ctx context.Context, dir string, recurse bool) (r unTrashResult, err error) {
-	directoryID, err := f.dirCache.FindDir(ctx, dir, false)
+	directoryID, err := f.findDirectory(ctx, dir, false)
 	if err != nil {
 		r.Errors++
 		return r, err
@@ -4477,7 +4478,7 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 			// no arguments - list only
 		} else if !delete && len(arg) == 1 {
 			dir := arg[0]
-			dirID, err = f.dirCache.FindDir(ctx, dir, true)
+			dirID, err = f.findDirectory(ctx, dir, true)
 			if err != nil {
 				return nil, fmt.Errorf("failed to find or create rescue directory %q: %w", dir, err)
 			}
@@ -4546,7 +4547,7 @@ func (o *baseObject) Size() int64 {
 func (f *Fs) getRemoteInfoWithExport(ctx context.Context, remote string) (
 	info *drive.File, extension, exportName, exportMimeType string, isDocument bool, err error,
 ) {
-	leaf, directoryID, err := f.dirCache.FindPath(ctx, remote, false)
+	leaf, directoryID, err := f.findParentDirectory(ctx, remote, false)
 	if err != nil {
 		if err == fs.ErrorDirNotFound {
 			return nil, "", "", "", false, fs.ErrorObjectNotFound

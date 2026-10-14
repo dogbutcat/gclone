@@ -34,6 +34,7 @@ var _ fusefs.Node = (*Dir)(nil)
 func (d *Dir) Attr(ctx context.Context, a *fuse.Attr) (err error) {
 	defer log.Trace(d, "")("attr=%+v, err=%v", a, &err)
 	a.Valid = time.Duration(d.fsys.opt.AttrTimeout)
+	a.Inode = d.Dir.Inode()
 	a.Gid = d.VFS().Opt.GID
 	a.Uid = d.VFS().Opt.UID
 	a.Mode = d.Mode()
@@ -81,23 +82,7 @@ func (d *Dir) Lookup(ctx context.Context, req *fuse.LookupRequest, resp *fuse.Lo
 		return nil, translateError(err)
 	}
 	resp.EntryValid = time.Duration(d.fsys.opt.AttrTimeout)
-	// Check the mnode to see if it has a fuse Node cached
-	// We must return the same fuse nodes for vfs Nodes
-	node, ok := mnode.Aux(d.fsys).(fusefs.Node)
-	if ok {
-		return node, nil
-	}
-	switch x := mnode.(type) {
-	case *vfs.File:
-		node = &File{x, d.fsys}
-	case *vfs.Dir:
-		node = &Dir{x, d.fsys}
-	default:
-		panic("bad type")
-	}
-	// Cache the node for later
-	mnode.SetAux(d.fsys, node)
-	return node, nil
+	return d.fsys.node(mnode), nil
 }
 
 // Check interface satisfied
@@ -125,9 +110,9 @@ func (d *Dir) ReadDirAll(ctx context.Context) (dirents []fuse.Dirent, err error)
 			continue
 		}
 		var dirent = fuse.Dirent{
-			// Inode FIXME ???
-			Type: fuse.DT_File,
-			Name: name,
+			Inode: node.Inode(),
+			Type:  fuse.DT_File,
+			Name:  name,
 		}
 		if node.IsDir() {
 			dirent.Type = fuse.DT_Dir
@@ -155,13 +140,9 @@ func (d *Dir) Create(ctx context.Context, req *fuse.CreateRequest, resp *fuse.Cr
 	if err != nil {
 		return nil, nil, translateError(err)
 	}
-	fh, err := file.Open(osFlags)
-	if err != nil {
-		return nil, nil, translateError(err)
-	}
-	node = &File{file, d.fsys}
-	file.SetAux(d.fsys, node) // cache the FUSE node for later
-	return node, &FileHandle{fh}, err
+	node = d.fsys.node(file)
+	handle, err = node.(*File).Open(ctx, &fuse.OpenRequest{Flags: fuse.OpenFlags(osFlags)}, &resp.OpenResponse)
+	return node, handle, err
 }
 
 var _ fusefs.NodeMkdirer = (*Dir)(nil)
@@ -173,9 +154,7 @@ func (d *Dir) Mkdir(ctx context.Context, req *fuse.MkdirRequest) (node fusefs.No
 	if err != nil {
 		return nil, translateError(err)
 	}
-	node = &Dir{dir, d.fsys}
-	dir.SetAux(d.fsys, node) // cache the FUSE node for later
-	return node, nil
+	return d.fsys.node(dir), nil
 }
 
 var _ fusefs.NodeRemover = (*Dir)(nil)
@@ -263,8 +242,7 @@ func (d *Dir) Symlink(ctx context.Context, req *fuse.SymlinkRequest) (node fusef
 		return nil, err
 	}
 
-	node = &File{n.(*vfs.File), d.fsys}
-	return node, nil
+	return d.fsys.node(n), nil
 }
 
 // Check interface satisfied
