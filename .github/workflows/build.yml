@@ -101,9 +101,23 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Temporary workaround for setup-go SHA archive 404s (2026-10-15).
+      # This checksum pins v7.0.0 at b7ad1dad31e06c5925ef5d2fc7ad053ef454303e.
+      # Restore uses: actions/setup-go@v7 after the SHA endpoint recovers.
+      - name: Fetch pinned setup-go action
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _junk/setup-go-action
+          curl --fail --location --silent --show-error --retry 4 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 120 \
+            https://codeload.github.com/actions/setup-go/tar.gz/refs/tags/v7.0.0 \
+            --output _junk/setup-go-v7.0.0.tar.gz
+          node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); const actual = crypto.createHash("sha256").update(fs.readFileSync("_junk/setup-go-v7.0.0.tar.gz")).digest("hex"); if (actual !== "c75cc5945023fcba4719df940c7c37f881b034fc471a090d1226e6f661812181") throw new Error("setup-go archive SHA256 mismatch");'
+          tar -xzf _junk/setup-go-v7.0.0.tar.gz --strip-components=1 -C _junk/setup-go-action
+
       - name: Install Go
         id: setup-go
-        uses: actions/setup-go@v7
+        uses: ./_junk/setup-go-action
         with:
           go-version: ${{ matrix.go }}
           check-latest: true
@@ -339,10 +353,24 @@ jobs:
         with:
           fetch-depth: 0
 
+      # Temporary workaround for setup-go SHA archive 404s (2026-10-15).
+      # This checksum pins v7.0.0 at b7ad1dad31e06c5925ef5d2fc7ad053ef454303e.
+      # Restore uses: actions/setup-go@v7 after the SHA endpoint recovers.
+      - name: Fetch pinned setup-go action
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p _junk/setup-go-action
+          curl --fail --location --silent --show-error --retry 4 --retry-all-errors --retry-delay 2 --connect-timeout 15 --max-time 120 \
+            https://codeload.github.com/actions/setup-go/tar.gz/refs/tags/v7.0.0 \
+            --output _junk/setup-go-v7.0.0.tar.gz
+          node -e 'const fs = require("node:fs"); const crypto = require("node:crypto"); const actual = crypto.createHash("sha256").update(fs.readFileSync("_junk/setup-go-v7.0.0.tar.gz")).digest("hex"); if (actual !== "c75cc5945023fcba4719df940c7c37f881b034fc471a090d1226e6f661812181") throw new Error("setup-go archive SHA256 mismatch");'
+          tar -xzf _junk/setup-go-v7.0.0.tar.gz --strip-components=1 -C _junk/setup-go-action
+
       # Upgrade together with NDK version
       - name: Set up Go
         id: setup-go
-        uses: actions/setup-go@v7
+        uses: ./_junk/setup-go-action
         with:
           go-version: '~1.26.9'
           # Caching is handled explicitly below to share the module cache
