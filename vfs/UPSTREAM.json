@@ -1435,6 +1435,13 @@
       "local_sha256": "32003084ad6d3fd39123ee6a2e39a6c6db4bb8449ce359f6fd48543b597d639e"
     },
     {
+      "path": "vfs/cache_admission_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "bc8e1770a0ade6150044799843aa23e13abc2565b42c580fb258df3333efe3ee"
+    },
+    {
       "path": "vfs/deleted_open_test.go",
       "upstream_path": null,
       "upstream_sha256": null,
@@ -1446,7 +1453,7 @@
       "upstream_path": "vfs/dir.go",
       "upstream_sha256": "6fcae7903bb4cc74be8b9e23fafc374796903029c57620e315ab560cf8cfc835",
       "kind": "lifecycle-fix",
-      "local_sha256": "6c52c605731fa71b116c52a9a47c5400c34df9d3b34d9ddc2943c60397b127a9"
+      "local_sha256": "678f6fbdb4260fa4861b316f5cdfca63cc645c0e10d9fd04bc2b440a064a3bba"
     },
     {
       "path": "vfs/dir_handle.go",
@@ -1468,6 +1475,20 @@
       "upstream_sha256": "70be6041a861722029618b30bb8379d21ed3f17a2d158035d4bdd8034e1871b3",
       "kind": "upstream-copy",
       "local_sha256": "19b0c29830640201df11e4c91657f08f22c440455ac434352bd1743808860f29"
+    },
+    {
+      "path": "vfs/directory_lock_latency_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "949f6dcf6fca3a140eb6b41079329521fb594699f9d944005da0ada900c83aba"
+    },
+    {
+      "path": "vfs/directory_refresh.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "c316327f2d07ec34204b286b866d2ff23e857747ddeb0fc839af4ced517a8a72"
     },
     {
       "path": "vfs/errors.go",
@@ -1530,7 +1551,7 @@
       "upstream_path": null,
       "upstream_sha256": null,
       "kind": "lifecycle-fix",
-      "local_sha256": "960819166efe6b96216280d3e0d569ae9c89e7832111d4cfbbd7cdf3dea1f41d"
+      "local_sha256": "ae724d97cb9111c92490fd6a0e56fa608ec4c7469184948d9ba48473bef74a4b"
     },
     {
       "path": "vfs/object_view_test.go",
@@ -1558,7 +1579,7 @@
       "upstream_path": null,
       "upstream_sha256": null,
       "kind": "gclone-local",
-      "local_sha256": "6e4071076eb9fdb7757dd95fe156783cebf3e0bc87c96a8cc2e9c3c6d48c629e"
+      "local_sha256": "5ab53978fd54c6d646ac7a7bedf7ae1c182e911965a078ed5419f1ddf8e142b9"
     },
     {
       "path": "vfs/rc.go",
@@ -1593,7 +1614,7 @@
       "upstream_path": "vfs/read_write.go",
       "upstream_sha256": "1eeac72f0ed6b435cc01801df9646a3db1d4fdc34fb8664ff8df78a1a2798136",
       "kind": "lifecycle-fix",
-      "local_sha256": "7c173c98f0f1c7fa683addea19ecf1f07bc634894b8fe98e88ab997c052c6c23"
+      "local_sha256": "fd0bc590e4ddb0edb857d3901c15b109860fa0eef82a0c29a0c0b3e45cd6d92a"
     },
     {
       "path": "vfs/read_write_test.go",
@@ -1621,7 +1642,7 @@
       "upstream_path": null,
       "upstream_sha256": null,
       "kind": "lifecycle-fix",
-      "local_sha256": "aa5ef1088754a9ea53ef774a9ba630d6f8b05fac8820ee482b1e06196a65b8bd"
+      "local_sha256": "ca798f93ee922ac47084f4d9389d7e9adac4d74082611c65069f8a49419ec4df"
     },
     {
       "path": "vfs/rename_lifetime_test.go",
@@ -1727,7 +1748,14 @@
       "upstream_path": "vfs/vfscache/cache.go",
       "upstream_sha256": "01bb773ba6ccac11076559d1dfc1518b934e29255acd0d328566f7e81d16b9ee",
       "kind": "lifecycle-fix",
-      "local_sha256": "84ed0a28191b37370a0efb5e052c81c2386a72e700c218c6327fd68a98cba26c"
+      "local_sha256": "9d3e3c1703c4377c60c9544ceec36300f376dab559bc16d62af843289611ed79"
+    },
+    {
+      "path": "vfs/vfscache/cache_ownership.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "2c0a7122dc3519962941d6a5de5fa04534e78b1cdcc7b5f981c636805bc05cc4"
     },
     {
       "path": "vfs/vfscache/cache_test.go",
@@ -1751,18 +1779,25 @@
       "local_sha256": "39b1af40016338540a4d1159afe6f82a037de37307e9219a9fa846dc9fa81f1d"
     },
     {
+      "path": "vfs/vfscache/initialization_latency_unix_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "7d9c72c729d65c5518ffa89512160b1719ea5f9d2c360275842af1417b1daadb"
+    },
+    {
       "path": "vfs/vfscache/item.go",
       "upstream_path": "vfs/vfscache/item.go",
       "upstream_sha256": "020a4d2187d814bb390a262a68a1c04af827c0b5a3831930e4513416ddc9568d",
       "kind": "lifecycle-fix",
-      "local_sha256": "3fe24ca89e226d958f1bf19cf24ae2faeb05d3737907aa9488266e19b900bda8"
+      "local_sha256": "67f248e014b2c0d4ed149f1334ffa4eaefc00f7401180db38fa99dbdb41524a2"
     },
     {
       "path": "vfs/vfscache/item_test.go",
       "upstream_path": "vfs/vfscache/item_test.go",
       "upstream_sha256": "98e0c1803ef322d85c247dd11a5c73f29af10e38370f28318a31cdc8e1094ad4",
       "kind": "upstream-copy",
-      "local_sha256": "02c82da202e150c6e0d0e6578b9fc989959f824d28ae90816efe9af68a58fa7c"
+      "local_sha256": "05e3ff4a34f37f7af94f0bb103ddb0d2bd61b08aa818a4260850ebecfe1f5ba5"
     },
     {
       "path": "vfs/vfscache/item_waiter_test.go",
@@ -1784,6 +1819,20 @@
       "upstream_sha256": null,
       "kind": "lifecycle-fix",
       "local_sha256": "eb31295ab5b5463dc7e2c0ad234a2a72d0a0a164a0031c768b1f1a21ac44ee30"
+    },
+    {
+      "path": "vfs/vfscache/lock_latency_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "150c00706bd6c6e7aa6ca19eb208c58e152371dc5b3cd6e0d86077f5dd4a4424"
+    },
+    {
+      "path": "vfs/vfscache/maintenance_ownership_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "21dc3c418f2b29c442c1076bc3554502182b0202764fc788a255be23e543b23a"
     },
     {
       "path": "vfs/vfscache/metadata_lookup.go",
@@ -1812,7 +1861,7 @@
       "upstream_sha256": null,
       "patched_source_sha256": "9c9c6f60756a703cb0b6e7743b67119a2d330ac8d7abf5d88ae70c89b40ce38f",
       "kind": "lifecycle-fix",
-      "local_sha256": "62d2d0e60111fc5ee3aaa7398b41c3d987a4a6688a10153df594e5f7c86974b8"
+      "local_sha256": "5061d847c063f96ec4653ae0e0828edc4b36de45457e93c72feb0675dd38a384"
     },
     {
       "path": "vfs/vfscache/object_state.go",
@@ -1850,6 +1899,13 @@
       "local_sha256": "0c963e57f2edb2aa1d2cd09744633d9cf7e90f189baab2daa2e606a389106f52"
     },
     {
+      "path": "vfs/vfscache/publication_ownership_test.go",
+      "upstream_path": null,
+      "upstream_sha256": null,
+      "kind": "lifecycle-fix",
+      "local_sha256": "1f8fb3dcd5675af0e49d404859cf084c6e5b61ab12a2c89860de05115b14b4b5"
+    },
+    {
       "path": "vfs/vfscache/publication_revalidation_test.go",
       "upstream_path": null,
       "upstream_sha256": null,
@@ -1868,7 +1924,7 @@
       "upstream_path": null,
       "upstream_sha256": null,
       "kind": "lifecycle-fix",
-      "local_sha256": "54f90dee66b501a74bd503496270cea96ebf837d8b7a5a0bf97d1cdc2adb9346"
+      "local_sha256": "0a4c9aefa129345a35aedd5c55c9973c4f7cfda25fa17e477ea6904bd138ecc9"
     },
     {
       "path": "vfs/vfscache/source_download_test.go",
@@ -1897,7 +1953,7 @@
       "upstream_sha256": null,
       "patched_source_sha256": "2a1ad6f9695b4c47e711c462157752282a8cad84d09f663bdf049ae152c25fb1",
       "kind": "lifecycle-fix",
-      "local_sha256": "59c7e2ac9acd285ca8a919dce6f8c97e3df242b2ce9b529774dd8f9045e1c3a9"
+      "local_sha256": "8a7be14432a68ccafc8ff48d4bf32ed3d628284f0f1fbbda9f08560280368459"
     },
     {
       "path": "vfs/vfscache/unlink_test.go",
@@ -2243,5 +2299,26 @@
       "vfs/vfscache/kernel_view_test.go"
     ],
     "removal": "Drop only after equivalent upstream code passes the kernel, readonly-reclaim and previous lifecycle regressions."
+  },
+  "lock_latency_patch": {
+    "baseline_commit": "81c3355c6b2dc417f55a182c9df942c7ef474ddf",
+    "scope": "Cache ownership and maintenance, directory refresh generations, Drive resolver flights and complete SA service snapshots",
+    "regression_files": [
+      "vfs/vfscache/lock_latency_test.go",
+      "vfs/vfscache/maintenance_ownership_test.go",
+      "vfs/vfscache/publication_ownership_test.go",
+      "vfs/vfscache/initialization_latency_unix_test.go",
+      "vfs/directory_lock_latency_test.go",
+      "vfs/cache_admission_test.go",
+      "internal/dircache/dircache_test.go",
+      "backend/drive/directory_latency_test.go",
+      "backend/drive/directory_observation_test.go",
+      "backend/drive/service_latency_unix_test.go",
+      "internal/dircache/alias_ownership_test.go",
+      "vfs/directory_handoff_test.go",
+      "backend/drive/service_identity_test.go"
+    ],
+    "directory_resolver_provenance": "internal/dircache/UPSTREAM.txt",
+    "removal": "Require latency and ownership gates plus all prior WAL/unlink/rename/kernel-view regressions. Restore Drive resolver imports only with equivalent upstream generation and creation ownership."
   }
 }

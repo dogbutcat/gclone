@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dogbutcat/gclone/internal/dircache"
 	_ "github.com/rclone/rclone/backend/local"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/filter"
@@ -24,7 +25,6 @@ import (
 	"github.com/rclone/rclone/fs/sync"
 	"github.com/rclone/rclone/fstest"
 	"github.com/rclone/rclone/fstest/fstests"
-	"github.com/rclone/rclone/lib/dircache"
 	"github.com/rclone/rclone/lib/random"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

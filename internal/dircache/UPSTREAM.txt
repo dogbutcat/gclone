@@ -1,0 +1,43 @@
+PURPOSE
+  Repository-local directory resolver adaptation for gclone Drive. It keeps
+  upstream public path/root semantics while allowing independent cold paths to
+  progress without retaining a global mutex across backend requests.
+
+SOURCE
+  github.com/rclone/rclone v1.75.2
+  commit be8d6044eacb843b74d335db0c5fbe09222031fe
+  original: lib/dircache/dircache.go
+  original SHA256: 7c7fd889e5076b9c911402bd0c82f5d592685cf0abbe372fc43d27ddeadd7f07
+  https://github.com/rclone/rclone/blob/v1.75.2/lib/dircache/dircache.go
+  License: COPYING.rclone in this directory.
+
+LOCAL CHANGES
+  Lookup flights are scoped to a parent binding and root generation. Physical
+  create ownership is separate and survives logical invalidation until an
+  accepted binding publishes or a later lookup reconciles the result.
+  Admission is bounded by the configured checkers, capped at 16. Resolving
+  parents never retains a child admission permit. Each wait honors its caller;
+  shared work uses the cache construction context for shutdown.
+
+  Listing callbacks carry observations captured before their requests. FlushDir
+  invalidates the parent's listing generation; root reset invalidates all old
+  observations. Epochs are stored only for current bindings. MkdirMetadata shares
+  the same creation owner and applies its metadata if another creator won.
+
+  Definite API rejections may retry. Ambiguous creations are re-resolved rather
+  than blindly repeated; unresolved records are retained with a bounded limit.
+  This is process-local ownership, not cross-process exactly-once creation.
+
+REMOVAL
+  Restore backend/drive imports to upstream lib/dircache only after upstream
+  passes the independent-parent, same-name/shared-ancestor, reset, stale listing,
+  cancellation, metadata-create and ambiguous-outcome regressions here.
+  Remove Observe/PutContext and FindDirWithCreate wiring only with equivalent
+  upstream observation and physical-creation guarantees. Do not drop gclone SA
+  behavior or its service snapshot integration when removing this resolver.
+
+  Keep existing WAL, unlink, rename, retired-handle and kernel-cache tests green.
+  Mounted latency must be measured separately for same-parent Linux serialization
+  and independent-parent backend concurrency. No asynchronous mkdir acknowledgement
+  or relaxed file durability is introduced. No build-preparation or workflow
+  change is required.

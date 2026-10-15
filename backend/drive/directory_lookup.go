@@ -3,8 +3,11 @@ package drive
 
 import (
 	"context"
+	"errors"
 
-	"github.com/rclone/rclone/lib/dircache"
+	"github.com/dogbutcat/gclone/internal/dircache"
+	"golang.org/x/oauth2"
+	"google.golang.org/api/googleapi"
 )
 
 func (f *Fs) findDirectory(ctx context.Context, name string, create bool) (string, error) {
@@ -19,6 +22,26 @@ func (f *Fs) findDirectory(ctx context.Context, name string, create bool) (strin
 		}
 	}
 	return f.dirCache.FindDir(ctx, name, create)
+}
+
+// DirectoryCacheKey identifies the actual remote parent and encoded name.
+// It is pure bookkeeping and must never issue requests under the cache lock.
+func (f *Fs) DirectoryCacheKey(parent, leaf string) string {
+	return actualID(parent) + "\x00" + f.opt.Enc.FromStandardName(leaf)
+}
+
+// Explicit API rejection and failed token acquisition cannot have created a
+// directory. Transport errors and server failures require reconciliation.
+func (f *Fs) AmbiguousDirectoryCreate(err error) bool {
+	var api *googleapi.Error
+	if errors.As(err, &api) {
+		return api.Code >= 500 || api.Code == 408
+	}
+	var token *oauth2.RetrieveError
+	if errors.As(err, &token) {
+		return false
+	}
+	return true
 }
 
 func (f *Fs) findParentDirectory(ctx context.Context, remote string, create bool) (leaf, id string, err error) {

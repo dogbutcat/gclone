@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"maps"
 	"mime"
 	"net/http"
 	"os"
@@ -27,6 +28,7 @@ import (
 	"text/template"
 	"time"
 
+	"github.com/dogbutcat/gclone/internal/dircache"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/cache"
 	"github.com/rclone/rclone/fs/config"
@@ -40,7 +42,6 @@ import (
 	"github.com/rclone/rclone/fs/hash"
 	"github.com/rclone/rclone/fs/list"
 	"github.com/rclone/rclone/fs/operations"
-	"github.com/rclone/rclone/lib/dircache"
 	"github.com/rclone/rclone/lib/encoder"
 	"github.com/rclone/rclone/lib/env"
 	"github.com/rclone/rclone/lib/oauthutil"
@@ -909,6 +910,7 @@ type Fs struct {
 	//-----------------------------------------------------------
 	ServiceAccountFiles *SaInfo
 	waitChangeSvc       *sync.Mutex
+	serviceState        *serviceState
 	FileObj             *fs.Object
 	maybeIsFile         bool
 	//-----------------------------------------------------------
@@ -989,10 +991,20 @@ type saService struct {
 
 // serviceLocked requires waitChangeSvc to be held.
 func (f *Fs) serviceLocked() saService {
+	if f.serviceState != nil {
+		if service := f.serviceState.current.Load(); service != nil {
+			return *service
+		}
+	}
 	return saService{svc: f.svc, v2Svc: f.v2Svc, client: f.client, file: f.opt.ServiceAccountFile}
 }
 
 func (f *Fs) currentService() saService {
+	if f.serviceState != nil {
+		if service := f.serviceState.current.Load(); service != nil {
+			return *service
+		}
+	}
 	f.waitChangeSvc.Lock()
 	defer f.waitChangeSvc.Unlock()
 	return f.serviceLocked()
@@ -1057,14 +1069,14 @@ func (f *Fs) shouldRetryWithSA(ctx context.Context, err error, service *saServic
 
 // patch 1: 替换 service file
 func (f *Fs) changeSvc(ctx context.Context) {
-	f.changeSvcForSA(ctx, f.opt.ServiceAccountFile)
+	f.changeSvcForSA(ctx, f.serviceLocked().file)
 }
 
 // changeSvcForSA handles quota for the failed request's account. The caller holds waitChangeSvc.
 func (f *Fs) changeSvcForSA(ctx context.Context, failedFile string) {
 	opt := &f.opt
 	sfp := f.ServiceAccountFiles
-	oldFile := opt.ServiceAccountFile
+	oldFile := f.serviceLocked().file
 	if failedFile != oldFile {
 		// Another request already switched accounts; keep its current service.
 		sfp.markStaleSa(failedFile)
@@ -1107,7 +1119,7 @@ func (f *Fs) rollingSvc(ctx context.Context) {
 	opt := &f.opt
 	sfp := f.ServiceAccountFiles
 	if sfp.isPoolEmpty() {
-		if err := sfp.loadInfoFromDir(opt.ServiceAccountFilePath, opt.ServiceAccountFile); err != nil {
+		if err := sfp.loadInfoFromDir(opt.ServiceAccountFilePath, f.serviceLocked().file); err != nil {
 			fs.Errorf(f, "Load service accounts for rolling: %v", err)
 			return
 		}
@@ -1266,13 +1278,16 @@ func (f *Fs) listWithSA(ctx context.Context, dirIDs []string, title string, dire
 	}
 
 	queryString := strings.Join(query, " and ")
-	f.waitChangeSvc.Lock()
+	var service saService
 	if rolling {
+		f.waitChangeSvc.Lock()
 		f.rollingSvc(ctx)
+		service = f.serviceLocked()
+		f.waitChangeSvc.Unlock()
+	} else {
+		service = f.currentService()
 	}
-	service := f.serviceLocked()
-	f.lastQuery = queryString // for unit tests
-	f.waitChangeSvc.Unlock()
+	f.recordQuery(queryString)
 
 	fields := fmt.Sprintf("files(%s),nextPageToken,incompleteSearch", f.getFileFields(ctx))
 	pageToken := ""
@@ -1624,6 +1639,7 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 		permissions:     make(map[string]*drive.Permission),
 		//-----------------------------------------------------------
 		waitChangeSvc:       new(sync.Mutex),
+		serviceState:        new(serviceState),
 		ServiceAccountFiles: saInfo,
 		//-----------------------------------------------------------
 	}
@@ -1658,6 +1674,7 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 			return nil, fmt.Errorf("couldn't create Drive v2 client: %w", err)
 		}
 	}
+	f.publishServiceLocked()
 
 	//-----------------------------------------------------------
 	f.maybeIsFile = maybeIsFile
@@ -1696,7 +1713,7 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 		fs.Debugf(f, "'root_folder_id = %s' - save this in the config to speed up startup", rootID)
 	}
 
-	f.dirCache = dircache.New(f.root, f.rootFolderID, f)
+	f.dirCache = dircache.NewWithContext(ctx, f.root, f.rootFolderID, f)
 
 	// If resource key is set then cache it for the root folder id
 	if f.opt.ResourceKey != "" {
@@ -1728,7 +1745,7 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 			if file.MimeType != "application/vnd.google-apps.folder" && file.MimeType != "" {
 				tempF := *f
 				newRoot := ""
-				tempF.dirCache = dircache.New(newRoot, f.rootFolderID, &tempF)
+				tempF.dirCache = dircache.NewWithContext(ctx, newRoot, f.rootFolderID, &tempF)
 				tempF.root = newRoot
 				f.dirCache = tempF.dirCache
 				f.root = tempF.root
@@ -1749,7 +1766,7 @@ func NewFs(ctx context.Context, name, path string, m configmap.Mapper) (fs.Fs, e
 		// Assume it is a file
 		newRoot, remote := dircache.SplitPath(f.root)
 		tempF := *f
-		tempF.dirCache = dircache.New(newRoot, f.rootFolderID, &tempF)
+		tempF.dirCache = dircache.NewWithContext(ctx, newRoot, f.rootFolderID, &tempF)
 		tempF.root = newRoot
 		// Make new Fs which is the parent
 		err = tempF.dirCache.FindRoot(ctx, false)
@@ -2043,6 +2060,9 @@ func (f *Fs) createDir(ctx context.Context, pathID, leaf string, metadata fs.Met
 			Fields(f.getFileFields(ctx)).
 			SupportsAllDrives(true).
 			Context(ctx).Do()
+		if err != nil && f.AmbiguousDirectoryCreate(err) {
+			return false, err
+		}
 		return f.shouldRetryWithSA(ctx, err, &service)
 	})
 	if err != nil {
@@ -2278,6 +2298,7 @@ func (f *Fs) ListP(ctx context.Context, dir string, callback fs.ListRCallback) e
 	if err != nil {
 		return err
 	}
+	ctx = f.dirCache.Observe(ctx, map[string]string{dir: directoryID})
 	directoryID = actualID(directoryID)
 
 	var iErr error
@@ -2369,9 +2390,14 @@ func (f *Fs) listRRunner(ctx context.Context, wg *sync.WaitGroup, in chan listRE
 			}
 		}
 		listRSlices{dirs, paths}.Sort()
+		parents := make(map[string]string, len(paths))
+		for i, name := range paths {
+			parents[name] = dirs[i]
+		}
+		batchCtx := f.dirCache.Observe(ctx, parents)
 		var iErr error
 		foundItems := false
-		_, err := f.listWithSA(ctx, dirs, "", false, false, f.opt.TrashedOnly, false, f.opt.RollingSA, func(item *drive.File) bool {
+		_, err := f.listWithSA(batchCtx, dirs, "", false, false, f.opt.TrashedOnly, false, f.opt.RollingSA, func(item *drive.File) bool {
 			// shared with me items have no parents when at the root
 			if f.opt.SharedWithMe && len(item.Parents) == 0 && len(paths) == 1 && paths[0] == "" {
 				item.Parents = dirs
@@ -2400,7 +2426,7 @@ func (f *Fs) listRRunner(ctx context.Context, wg *sync.WaitGroup, in chan listRE
 					}
 				}
 				remote := path.Join(paths[i], item.Name)
-				entry, err := f.itemToDirEntry(ctx, remote, item)
+				entry, err := f.itemToDirEntry(batchCtx, remote, item)
 				if err != nil {
 					iErr = err
 					return true
@@ -2725,9 +2751,9 @@ func (f *Fs) itemToDirEntry(ctx context.Context, remote string, item *drive.File
 			return nil, nil
 		}
 		// cache the directory ID for later lookups
-		f.dirCache.Put(remote, item.Id)
+		accepted := f.dirCache.PutContext(ctx, remote, item.Id)
 		// cache the resource key for later lookups
-		if item.ResourceKey != "" {
+		if accepted && item.ResourceKey != "" {
 			f.dirResourceKeys.Store(item.Id, item.ResourceKey)
 		}
 		baseObject, err := f.newBaseObject(ctx, remote, item)
@@ -2943,18 +2969,20 @@ func (f *Fs) Mkdir(ctx context.Context, dir string) error {
 //
 // It returns the directory that was created.
 func (f *Fs) MkdirMetadata(ctx context.Context, dir string, metadata fs.Metadata) (fs.Directory, error) {
+	// A shared creator may outlive a canceled waiter; retain its own input.
+	metadata = maps.Clone(metadata)
 	var info *drive.File
-	dirID, err := f.findDirectory(ctx, dir, false)
-	if err == fs.ErrorDirNotFound {
-		// Directory does not exist so create it
-		var leaf, parentID string
-		leaf, parentID, err = f.findParentDirectory(ctx, dir, true)
-		if err != nil {
-			return nil, err
+	dirID, err := f.dirCache.FindDirWithCreate(ctx, dir, func(ctx context.Context, parentID, leaf string) (string, error) {
+		var createErr error
+		info, createErr = f.createDir(ctx, parentID, leaf, metadata)
+		if createErr != nil {
+			return "", createErr
 		}
-		info, err = f.createDir(ctx, parentID, leaf, metadata)
-	} else if err == nil {
-		// Directory exists and needs updating
+		return info.Id, nil
+	})
+	if err == nil && (info == nil || info.Id != dirID) {
+		// A concurrent creator may have supplied the shared ID. Preserve this
+		// caller's metadata update rather than repeating physical creation.
 		info, err = f.updateDir(ctx, dirID, metadata)
 	}
 	if err != nil {
@@ -3491,6 +3519,10 @@ func (f *Fs) DirMove(ctx context.Context, src fs.Fs, srcRemote, dstRemote string
 		return err
 	}
 	_ = srcLeaf
+	// Fence both prefixes before and after the remote move. Old listings
+	// and pending child resolutions must not republish the previous binding.
+	srcFs.dirCache.FlushDir(srcRemote)
+	f.dirCache.FlushDir(dstRemote)
 
 	dstDirectoryID = actualID(dstDirectoryID)
 	srcDirectoryID = actualID(srcDirectoryID)
@@ -3513,6 +3545,7 @@ func (f *Fs) DirMove(ctx context.Context, src fs.Fs, srcRemote, dstRemote string
 		return err
 	}
 	srcFs.dirCache.FlushDir(srcRemote)
+	f.dirCache.FlushDir(dstRemote)
 	//-----------------------------------------------------------
 	if f.opt.RollingSA {
 		f.waitChangeSvc.Lock()
@@ -3714,42 +3747,35 @@ func (f *Fs) changeServiceAccountFile(ctx context.Context, file string) (err err
 // changeServiceAccountFileLocked replaces clients while the caller holds waitChangeSvc.
 func (f *Fs) changeServiceAccountFileLocked(ctx context.Context, file string) (err error) {
 	file = env.ShellExpand(file)
-	fs.Debugf(nil, "Changing Service Account File from %s to %s", f.opt.ServiceAccountFile, file)
-	if file == f.opt.ServiceAccountFile {
+	current := f.serviceLocked()
+	fs.Debugf(nil, "Changing Service Account File from %s to %s", current.file, file)
+	if file == current.file {
 		return nil
 	}
-	oldSvc := f.svc
-	oldv2Svc := f.v2Svc
-	oldOAuthClient := f.client
-	oldFile := f.opt.ServiceAccountFile
-	oldCredentials := f.opt.ServiceAccountCredentials
-	defer func() {
-		// Undo all the changes instead of doing selective undo's
-		if err != nil {
-			f.svc = oldSvc
-			f.v2Svc = oldv2Svc
-			f.client = oldOAuthClient
-			f.opt.ServiceAccountFile = oldFile
-			f.opt.ServiceAccountCredentials = oldCredentials
-		}
-	}()
-	f.opt.ServiceAccountFile = file
-	f.opt.ServiceAccountCredentials = ""
-	oAuthClient, err := createOAuthClient(ctx, &f.opt, f.name, f.m)
+	// Build privately. Neither a partial v1/v2 constructor nor a slow credential
+	// read changes the tuple which ordinary requests are still using.
+	options := f.opt
+	options.ServiceAccountFile = file
+	options.ServiceAccountCredentials = ""
+	client, err := createOAuthClient(ctx, &options, f.name, f.m)
 	if err != nil {
 		return fmt.Errorf("drive: failed when making oauth client: %w", err)
 	}
-	f.client = oAuthClient
-	f.svc, err = drive.NewService(context.Background(), option.WithHTTPClient(f.client))
+	service, err := drive.NewService(context.Background(), option.WithHTTPClient(client))
 	if err != nil {
 		return fmt.Errorf("couldn't create Drive client: %w", err)
 	}
-	if f.opt.V2DownloadMinSize >= 0 {
-		f.v2Svc, err = drive_v2.NewService(context.Background(), option.WithHTTPClient(f.client))
+	var v2 *drive_v2.Service
+	if options.V2DownloadMinSize >= 0 {
+		v2, err = drive_v2.NewService(context.Background(), option.WithHTTPClient(client))
 		if err != nil {
 			return fmt.Errorf("couldn't create Drive v2 client: %w", err)
 		}
 	}
+	f.client, f.svc, f.v2Svc = client, service, v2
+	f.opt.ServiceAccountFile = options.ServiceAccountFile
+	f.opt.ServiceAccountCredentials = options.ServiceAccountCredentials
+	f.publishServiceLocked()
 	return nil
 }
 
@@ -4367,13 +4393,13 @@ func (f *Fs) Command(ctx context.Context, name string, arg []string, opt map[str
 		if serviceAccountFile, ok := opt["service_account_file"]; ok {
 			serviceAccountMap := make(map[string]string)
 			f.waitChangeSvc.Lock()
-			serviceAccountMap["previous"] = f.opt.ServiceAccountFile
+			serviceAccountMap["previous"] = f.serviceLocked().file
 			if err = f.changeServiceAccountFileLocked(ctx, serviceAccountFile); err != nil {
 				f.waitChangeSvc.Unlock()
 				return out, err
 			}
-			f.ServiceAccountFiles.activeSa(f.opt.ServiceAccountFile)
-			serviceAccountMap["current"] = f.opt.ServiceAccountFile
+			f.ServiceAccountFiles.activeSa(f.serviceLocked().file)
+			serviceAccountMap["current"] = f.serviceLocked().file
 			f.waitChangeSvc.Unlock()
 			f.m.Set("service_account_file", serviceAccountFile)
 			out["service_account_file"] = serviceAccountMap

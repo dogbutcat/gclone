@@ -4,6 +4,7 @@ package vfs
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -74,13 +75,13 @@ func newRWFileHandleForKernel(d *Dir, f *File, flags int, owner *vfscache.Kernel
 		err = fh.Truncate(0)
 		if err != nil {
 			if fh.opened {
-				_ = item.Close(nil)
+				_ = fh.item.Close(nil)
 				fh.kernelLease.Close()
 			}
 			return nil, fmt.Errorf("cache open with O_TRUNC: failed to truncate: %w", err)
 		}
 		// we definitely need to write back the item even if we don't write to it
-		item.Dirty()
+		fh.item.Dirty()
 	}
 
 	if !fh.readOnly() {
@@ -121,10 +122,21 @@ func (fh *RWFileHandle) openPending() (err error) {
 	o, revision := fh.file.objectSnapshot()
 	allowCreate := fh.flags&os.O_CREATE != 0 && !fh.d.vfs.Opt.ReadOnly
 	var resolved fs.Object
-	if fh.kernelOwner != nil {
-		resolved, fh.kernelLease, err = fh.item.OpenForKernel(o, allowCreate, fh.kernelOwner, !fh.readOnly())
-	} else {
-		resolved, err = fh.item.OpenWithObject(o, allowCreate)
+	for {
+		if fh.kernelOwner != nil {
+			resolved, fh.kernelLease, err = fh.item.OpenForKernel(o, allowCreate, fh.kernelOwner, !fh.readOnly())
+		} else {
+			resolved, err = fh.item.OpenWithObject(o, allowCreate)
+		}
+		if !errors.Is(err, vfscache.ErrStaleItem) {
+			break
+		}
+		if err = fh.file.ctx.Err(); err != nil {
+			return err
+		}
+		// File.muRW excludes unlink/rename here. Only nonterminal eviction
+		// can require a fresh cache pointer for this accepted File lifetime.
+		fh.item = fh.d.vfs.cache.Item(fh.file.CachePath())
 	}
 	if err != nil {
 		return fmt.Errorf("open RW handle failed to open cache file: %w", err)

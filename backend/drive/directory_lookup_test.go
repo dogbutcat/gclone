@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rclone/rclone/lib/dircache"
+	"github.com/dogbutcat/gclone/internal/dircache"
 	"github.com/stretchr/testify/require"
 )
 

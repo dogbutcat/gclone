@@ -26,9 +26,7 @@ func (e *RenameRecoveryError) Unwrap() error { return e.error }
 // cannot reactivate a source upload after a committed remote move. Existing
 // source handles receive an error instead of acknowledging unpublishable writes.
 func (c *Cache) quarantineRenameSource(oldName, newName, stage string, cause error) error {
-	c.mu.Lock()
-	item, _ := c._get(oldName)
-	item.mu.Lock()
+	item := c.lockItem(oldName)
 	item.unlinking, item.unlinkErr = true, cause
 	id := item.writeBackID
 	item.mu.Unlock()

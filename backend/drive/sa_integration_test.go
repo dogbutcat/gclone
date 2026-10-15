@@ -22,9 +22,9 @@ import (
 	"testing"
 	"time"
 
+	"github.com/dogbutcat/gclone/internal/dircache"
 	"github.com/rclone/rclone/fs"
 	"github.com/rclone/rclone/fs/config/configmap"
-	"github.com/rclone/rclone/lib/dircache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/api/drive/v3"

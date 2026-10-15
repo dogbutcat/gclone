@@ -50,9 +50,7 @@ func (c *Cache) Unlink(name string, remove func(fs.Object) error) (removed bool,
 // Only a pre-commit error permits restoring the old data. A post-commit error
 // keeps recovery files outside reload roots and still fences the old handles.
 func (c *Cache) retire(name string, action func(fs.Object, string) (bool, error)) (committed bool, err error) {
-	c.mu.Lock()
-	item, _ := c._get(name)
-	item.mu.Lock()
+	item := c.lockItem(name)
 	if item.unlinking || item.unlinked || item.name != name {
 		item.mu.Unlock()
 		c.mu.Unlock()
@@ -167,16 +165,27 @@ func (c *Cache) retire(name string, action func(fs.Object, string) (bool, error)
 
 	// Keep name reserved until both pathnames are gone. Do not clear range
 	// metadata or close the FD: late writes still belong to this old inode.
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	item.mu.Lock()
-	defer item.mu.Unlock()
+	for {
+		c.mu.Lock()
+		if c.tryItems(item) {
+			break
+		}
+	}
 	item.unlinked, item.unlinking = true, false
 	if err != nil {
 		item.unlinkErr = errors.Join(item.unlinkErr, err)
 	}
 	item.beingReset = false
 	item.cond.Broadcast()
+	if c.item[name] == item {
+		c.bindItem(name, nil)
+		delete(c.errItems, name)
+		delete(c.errOwners, name)
+	}
+	item.mu.Unlock()
+	c.mu.Unlock()
+	// The outer pathname reservation still owns the unique quarantine paths.
+	// Physical cleanup must not retain either shared cache or Item mutex.
 	for i, moved := range staged {
 		if moved && err == nil {
 			if cleanupErr := os.Remove(stagePath(i)); cleanupErr != nil && !os.IsNotExist(cleanupErr) {
@@ -188,10 +197,6 @@ func (c *Cache) retire(name string, action func(fs.Object, string) (bool, error)
 		_ = os.Remove(stage)
 	} else {
 		err = fmt.Errorf("vfs cache: mutation committed; recovery data in %q: %w", stage, err)
-	}
-	if c.item[name] == item {
-		delete(c.item, name)
-		delete(c.errItems, name)
 	}
 	return true, err
 }

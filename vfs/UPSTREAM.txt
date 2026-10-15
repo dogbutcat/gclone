@@ -214,3 +214,32 @@ LIMITS
   release that lock. Empty or failed writes do not create phantom zero extents.
   Keep modtime_lifetime_test.go, sparse_write_stat_test.go, mountlib/handle_test.go
   and mount/{inode_lifetime,open_sync}_test.go when removing these fixes.
+
+LOCK LATENCY OVERRIDE
+  Cache.mu protects short ownership/map transactions. Item-lock waits, cold
+  metadata loading, cleaner reset/drain, accounting scans and staged-file cleanup
+  execute outside it. Per-name maintenance also fences captured Item pointers;
+  deferred open validates ownership before creating or saving cache paths, and
+  VFS reacquires an evicted binding without exposing a new EBUSY policy.
+
+  Directory refreshes fetch and prepare entries without retaining namespace
+  locks. Still-valid positive snapshots remain usable during a forced refresh;
+  expired/invalidated/unknown names and strict readdir retain strict refresh
+  semantics. Per-file publication fences and per-name local mutation stamps
+  survive unlocked fetches. Parent/root generations reject obsolete tree replies.
+  Namespace helpers release parent locks before waiting on File/child locks;
+  rename replacement still publishes retirement and replacement atomically.
+
+  The publication_open regression uses an explicit directory scheduling gate
+  because entry preparation now occurs unlocked. Its accepted-ID, subsequent
+  upload and exact-byte assertions are retained.
+
+  Drive's independent resolver is documented in internal/dircache/UPSTREAM.txt.
+  SA rotation still serializes account selection/building, while ordinary readers
+  use an atomically published complete client tuple. Credentials and v1/v2 clients
+  are built privately; failed construction cannot expose a partial replacement.
+
+  Drop these changes only after equivalent upstream behavior passes latency
+  gates as well as the existing lifetime/data regressions. Data-only success is
+  not latency acceptance. Same-file coherence waits and Linux parent-directory
+  serialization remain part of the filesystem contract.

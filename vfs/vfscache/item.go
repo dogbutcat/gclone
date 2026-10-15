@@ -58,39 +58,41 @@ import (
 // The Info field is written to the backing store to store status
 type Item struct {
 	// read only
-	c                 *Cache                                 // cache this is part of
-	mu                sync.Mutex                             // protect the variables
-	cond              sync.Cond                              // synchronize with cache cleaner
-	name              string                                 // name in the VFS
-	opens             int                                    // number of times file is open
-	downloaders       *downloaders.Downloaders               // a record of the downloaders in action - may be nil
-	o                 fs.Object                              // object we are caching - may be nil
-	fd                *os.File                               // handle we are using to read and write to the file
-	info              Info                                   // info about the file to persist to backing store
-	writeBackID       writeback.Handle                       // id of any writebacks in progress
-	pendingAccesses   int                                    // number of threads - cache reset not allowed if not zero
-	modified          bool                                   // set if the file has been modified since the last Open
-	beingReset        bool                                   // cache cleaner is resetting the cache file, access not allowed
-	graceTimer        *time.Timer                            // timer for delayed close after grace period
-	closing           chan struct{}                          // non-nil while a grace-period close is tearing the handle down, closed when done
-	unlinking         bool                                   // remote deletion is draining writeback; pathname is still reserved
-	unlinked          bool                                   // terminal lifetime: only the existing descriptor may be used
-	publishing        bool                                   // _store callback owns the newly uploaded object
-	mustRevalidate    bool                                   // confirmed absence survives callback completion and cache resets
-	objectEpoch       uint64                                 // observation and namespace ownership, protected by mu
-	localCreation     bool                                   // a committed local owner with no remote object yet
-	sourceMissing     bool                                   // uncached original bytes lost their remote source
-	sourceFingerprint string                                 // original range source, independent of destination metadata
-	sourceChanging    bool                                   // downloader drain before accepting another source
-	downloadEpoch     uint64                                 // permanently fences callbacks from replaced downloaders
-	writeEpoch        uint64                                 // foreground mutation ownership across unlocked IO
-	pendingWrites     int                                    // physical writes and dirty marking not yet completed
-	kernelViews       map[*KernelCacheOwner]*kernelViewState // accepted kernel views; protected by mu
-	kernelPins        int                                    // descriptor leases whose cached view must survive Reset
-	kernelDataEpoch   uint64                                 // accepted data replacement, not upload or local mutation
-	pendingLookups    int                                    // unlocked metadata requests pin this cache lifetime
-	storeFn           StoreFn                                // last callback, retained to resume writeback if unlink fails
-	unlinkErr         error                                  // failed rollback: readable recovery data, further writes must fail
+	c                  *Cache                                 // cache this is part of
+	mu                 sync.Mutex                             // protect the variables
+	cond               sync.Cond                              // synchronize with cache cleaner
+	name               string                                 // name in the VFS
+	opens              int                                    // number of times file is open
+	downloaders        *downloaders.Downloaders               // a record of the downloaders in action - may be nil
+	o                  fs.Object                              // object we are caching - may be nil
+	fd                 *os.File                               // handle we are using to read and write to the file
+	info               Info                                   // info about the file to persist to backing store
+	writeBackID        writeback.Handle                       // id of any writebacks in progress
+	pendingAccesses    int                                    // number of threads - cache reset not allowed if not zero
+	modified           bool                                   // set if the file has been modified since the last Open
+	beingReset         bool                                   // cache cleaner is resetting the cache file, access not allowed
+	maintenance        *cacheActivity                         // nonterminal cleanup also fences captured Item pointers
+	maintenanceWaiters int                                    // captured users which will reopen the cleaned binding
+	graceTimer         *time.Timer                            // timer for delayed close after grace period
+	closing            chan struct{}                          // non-nil while a grace-period close is tearing the handle down, closed when done
+	unlinking          bool                                   // remote deletion is draining writeback; pathname is still reserved
+	unlinked           bool                                   // terminal lifetime: only the existing descriptor may be used
+	publishing         bool                                   // _store callback owns the newly uploaded object
+	mustRevalidate     bool                                   // confirmed absence survives callback completion and cache resets
+	objectEpoch        uint64                                 // observation and namespace ownership, protected by mu
+	localCreation      bool                                   // a committed local owner with no remote object yet
+	sourceMissing      bool                                   // uncached original bytes lost their remote source
+	sourceFingerprint  string                                 // original range source, independent of destination metadata
+	sourceChanging     bool                                   // downloader drain before accepting another source
+	downloadEpoch      uint64                                 // permanently fences callbacks from replaced downloaders
+	writeEpoch         uint64                                 // foreground mutation ownership across unlocked IO
+	pendingWrites      int                                    // physical writes and dirty marking not yet completed
+	kernelViews        map[*KernelCacheOwner]*kernelViewState // accepted kernel views; protected by mu
+	kernelPins         int                                    // descriptor leases whose cached view must survive Reset
+	kernelDataEpoch    uint64                                 // accepted data replacement, not upload or local mutation
+	pendingLookups     int                                    // unlocked metadata requests pin this cache lifetime
+	storeFn            StoreFn                                // last callback, retained to resume writeback if unlink fails
+	unlinkErr          error                                  // failed rollback: readable recovery data, further writes must fail
 }
 
 // Info is persisted to backing store
@@ -585,8 +587,14 @@ func (item *Item) openObject(o fs.Object, allowCreate, claimCreate bool) (resolv
 func (item *Item) openObjectForKernel(o fs.Object, allowCreate, claimCreate bool, kernel *kernelOpen) (resolved fs.Object, err error) {
 	for range fs.GetConfig(item.c.ctx).LowLevelRetries {
 		item.preAccess()
-		resolved, err = item.openWithKernel(o, allowCreate, claimCreate, kernel)
+		err = item.c.admitOpen(item)
+		if err == nil {
+			resolved, err = item.openWithKernel(o, allowCreate, claimCreate, kernel)
+		}
 		item.postAccess()
+		if errors.Is(err, ErrStaleItem) {
+			return nil, err
+		}
 		if err == nil {
 			break
 		}
@@ -1211,7 +1219,7 @@ func (item *Item) RemoveNotInUse(maxAge time.Duration, emptyOnly bool) (removed 
 	spaceFreed = 0
 	removed = false
 
-	if item.opens != 0 || item.info.Dirty || item.graceTimer != nil || item.pendingLookups != 0 || item.unlinking || item.unlinked {
+	if item.opens != 0 || item.info.Dirty || item.graceTimer != nil || item.pendingAccesses != 0 || item.pendingLookups != 0 || item.unlinking || item.unlinked {
 		return
 	}
 
@@ -1391,8 +1399,14 @@ func (item *Item) preAccess() {
 	item.mu.Lock()
 	defer item.mu.Unlock()
 
-	for item.beingReset || item.unlinking {
-		item.cond.Wait()
+	for item.beingReset || item.unlinking || item.maintenance != nil {
+		if item.maintenance != nil {
+			item.maintenanceWaiters++
+			item.cond.Wait()
+			item.maintenanceWaiters--
+		} else {
+			item.cond.Wait()
+		}
 	}
 	item.pendingAccesses++
 }

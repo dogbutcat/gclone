@@ -289,7 +289,7 @@ func TestItemLoadMeta(t *testing.T) {
 	c.mu.Unlock()
 
 	// Reload the item so we have to load the metadata
-	item2, _ := c._get("existing")
+	item2, _ := c.get("existing")
 	require.NoError(t, item2.Open(obj))
 	info2 := item.info
 	require.NoError(t, item2.Close(nil))
@@ -328,7 +328,7 @@ func TestItemReload(t *testing.T) {
 
 	// Reload the item so we have to load the metadata and restart
 	// the transfer
-	item2, _ := c._get("existing")
+	item2, _ := c.get("existing")
 	require.NoError(t, item2.reload(context.Background()))
 	assert.False(t, item2.IsDirty())
 
@@ -492,7 +492,7 @@ func TestItemReloadDirtyBeyondRemote(t *testing.T) {
 	// Reload the dirty item. Before the fix this failed trying to download
 	// the missing [150,200) range from the 100 byte remote object with
 	// "invalid seek position".
-	item2, _ := c._get("existing")
+	item2, _ := c.get("existing")
 	require.NoError(t, item2.reload(context.Background()))
 	assert.False(t, item2.IsDirty())
 

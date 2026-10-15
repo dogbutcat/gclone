@@ -39,22 +39,49 @@ func (e *PathBusyError) Done() <-chan struct{} { return e.done }
 // reservePaths fails immediately on overlap rather than waiting with VFS
 // locks held. Unrelated filenames can still be deleted/renamed concurrently.
 func (c *Cache) reservePaths(names ...string) (*pathMutation, error) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
 	for i, name := range names {
 		names[i] = clean(name)
-		if owner := c.mutations[names[i]]; owner != nil {
-			return nil, &PathBusyError{name: names[i], done: owner.done}
-		}
-		if item := c.item[names[i]]; item != nil {
-			item.mu.Lock()
-			retired := item.unlinking || item.unlinked
-			item.mu.Unlock()
-			if retired {
-				return nil, fmt.Errorf("vfs cache: pathname %q needs recovery: %w", names[i], syscall.EBUSY)
+	}
+	for {
+		c.lockNames(names...)
+		items := make([]*Item, 0, len(names))
+		for _, name := range names {
+			if owner := c.mutations[name]; owner != nil {
+				c.mu.Unlock()
+				return nil, &PathBusyError{name: name, done: owner.done}
+			}
+			item := c.item[name]
+			if item == nil {
+				continue
+			}
+			seen := false
+			for _, prior := range items {
+				if prior == item {
+					seen = true
+					break
+				}
+			}
+			if !seen {
+				items = append(items, item)
 			}
 		}
+		if !c.tryItems(items...) {
+			continue
+		}
+		var retired string
+		for _, item := range items {
+			if item.unlinking || item.unlinked {
+				retired = item.name
+			}
+			item.mu.Unlock()
+		}
+		if retired != "" {
+			c.mu.Unlock()
+			return nil, fmt.Errorf("vfs cache: pathname %q needs recovery: %w", retired, syscall.EBUSY)
+		}
+		break
 	}
+	defer c.mu.Unlock()
 	if c.mutations == nil {
 		c.mutations = make(map[string]*pathMutation)
 	}

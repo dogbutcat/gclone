@@ -12,17 +12,34 @@ import (
 // upload can overtake. Dir.mu is held; File.mu stays held through replacement
 // or deletion so local publication cannot slip between the check and mutation.
 func (d *Dir) setListingNode(name string, node Node, readStarted time.Time) {
-	if f, ok := d.items[name].(*File); ok {
-		f.mu.RLock()
-		defer f.mu.RUnlock()
-		if !readStarted.IsZero() && f.objectUpdated.After(readStarted) {
+	generation := d.generation
+	for {
+		if !d.observationCurrent(generation, readStarted) || d.newerNamespace(name, readStarted) {
 			return
 		}
-	}
-	if node == nil {
-		delete(d.items, name)
-	} else {
-		d.items[name] = node
+		if f, ok := d.items[name].(*File); ok {
+			if !f.mu.TryRLock() {
+				d.waitFile(f)
+				continue
+			}
+			if !readStarted.IsZero() && f.objectUpdated.After(readStarted) {
+				f.mu.RUnlock()
+				return
+			}
+			if node == nil {
+				delete(d.items, name)
+			} else {
+				d.items[name] = node
+			}
+			f.mu.RUnlock()
+			return
+		}
+		if node == nil {
+			delete(d.items, name)
+		} else {
+			d.items[name] = node
+		}
+		return
 	}
 }
 

@@ -21,7 +21,6 @@ import (
 	"github.com/rclone/rclone/fs"
 	fscache "github.com/rclone/rclone/fs/cache"
 	"github.com/rclone/rclone/fs/config"
-	"github.com/rclone/rclone/fs/fserrors"
 	"github.com/rclone/rclone/fs/hash"
 	"github.com/rclone/rclone/fs/operations"
 	"github.com/rclone/rclone/fs/rc"
@@ -55,16 +54,20 @@ type Cache struct {
 	writeback  *writeback.WriteBack // holds Items for writeback
 	avFn       AddVirtualFn         // if set, can be called to add dir entries
 
-	mu            sync.Mutex               // protects the following variables
-	cond          sync.Cond                // cond lock for synchronous cache cleaning
-	item          map[string]*Item         // files/directories in the cache
-	mutations     map[string]*pathMutation // explicit unlink/rename pathname owners
-	errItems      map[string]error         // items in error state
-	used          int64                    // total size of files in the cache
-	outOfSpace    bool                     // out of space
-	cleanerKicked bool                     // some thread kicked the cleaner upon out of space
-	kickerMu      sync.Mutex               // mutex for cleanerKicked
-	kick          chan struct{}            // channel for kicking clear to start
+	mu            sync.Mutex                // protects the following variables
+	cond          sync.Cond                 // cond lock for synchronous cache cleaning
+	item          map[string]*Item          // files/directories in the cache
+	mutations     map[string]*pathMutation  // explicit unlink/rename pathname owners
+	activities    map[string]*cacheActivity // initialization and maintenance owners
+	epochs        map[string]uint64         // pathname binding generations
+	bindingEpoch  uint64                    // advances on every map publication
+	errOwners     map[string]cacheBinding   // generation which owns a reset error
+	errItems      map[string]error          // items in error state
+	used          int64                     // total size of files in the cache
+	outOfSpace    bool                      // out of space
+	cleanerKicked bool                      // some thread kicked the cleaner upon out of space
+	kickerMu      sync.Mutex                // mutex for cleanerKicked
+	kick          chan struct{}             // channel for kicking clear to start
 
 }
 
@@ -291,39 +294,32 @@ func (c *Cache) toOSPathMeta(name string) string {
 // name should be a remote path not an osPath
 //
 // must be called with mu held
-func (c *Cache) _get(name string) (item *Item, found bool) {
-	item = c.item[name]
-	found = item != nil
-	if !found {
-		item = newItem(c, name)
-		c.item[name] = item
-	}
-	return item, found
-}
-
 // put registers an opened item without replacing another live lifetime.
 //
 // name should be a remote path not an osPath
 func (c *Cache) put(name string, item *Item) error {
 	name = clean(name)
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	item.mu.Lock()
-	retired := item.unlinked || item.unlinking
-	item.mu.Unlock()
-	if retired {
-		return os.ErrNotExist
-	}
-	if oldItem := c.item[name]; oldItem != nil && oldItem != item {
-		oldItem.mu.Lock()
-		inUse := oldItem.opens != 0 || oldItem.unlinking || oldItem.unlinked
-		oldItem.mu.Unlock()
-		if inUse {
-			return fmt.Errorf("internal error: item %q already open in the cache", name)
+	for {
+		c.lockNames(name)
+		oldItem := c.item[name]
+		if !c.tryItems(item, oldItem) {
+			continue
 		}
+		var err error
+		if item.unlinked || item.unlinking {
+			err = os.ErrNotExist
+		} else if oldItem != nil && oldItem != item && (oldItem.opens != 0 || oldItem.unlinking || oldItem.unlinked) {
+			err = fmt.Errorf("internal error: item %q already open in the cache", name)
+		} else if oldItem != item {
+			c.bindItem(name, item)
+		}
+		if oldItem != nil && oldItem != item {
+			oldItem.mu.Unlock()
+		}
+		item.mu.Unlock()
+		c.mu.Unlock()
+		return err
 	}
-	c.item[name] = item
-	return nil
 }
 
 // InUse returns whether the name is in use in the cache
@@ -331,7 +327,7 @@ func (c *Cache) put(name string, item *Item) error {
 // name should be a remote path not an osPath
 func (c *Cache) InUse(name string) bool {
 	name = clean(name)
-	c.mu.Lock()
+	c.lockNames(name)
 	item := c.item[name]
 	c.mu.Unlock()
 	if item == nil {
@@ -346,13 +342,24 @@ func (c *Cache) InUse(name string) bool {
 // name should be a remote path not an osPath
 func (c *Cache) DirtyItem(name string) (item *Item) {
 	name = clean(name)
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	item = c.item[name]
-	if item != nil && !item.IsDirty() {
-		item = nil
+	for {
+		c.lockNames(name)
+		item = c.item[name]
+		if item == nil {
+			c.mu.Unlock()
+			return nil
+		}
+		if !c.tryItems(item) {
+			continue
+		}
+		dirty := item.info.Dirty && !item.unlinked && !item.unlinking
+		item.mu.Unlock()
+		c.mu.Unlock()
+		if !dirty {
+			return nil
+		}
+		return item
 	}
-	return item
 }
 
 // get gets a file name from the cache or creates a new one
@@ -363,8 +370,31 @@ func (c *Cache) DirtyItem(name string) (item *Item) {
 // name should be a remote path not an osPath
 func (c *Cache) get(name string) (item *Item, found bool) {
 	name = clean(name)
+	c.lockNames(name)
+	if item = c.item[name]; item != nil {
+		c.mu.Unlock()
+		return item, true
+	}
+	activity := &cacheActivity{done: make(chan struct{})}
+	if c.activities == nil {
+		c.activities = make(map[string]*cacheActivity)
+	}
+	c.activities[name] = activity
+	c.mu.Unlock()
+	defer func() {
+		c.mu.Lock()
+		delete(c.activities, name)
+		close(activity.done)
+		c.mu.Unlock()
+	}()
+	item = newItem(c, name)
 	c.mu.Lock()
-	item, found = c._get(name)
+	if current := c.item[name]; current != nil {
+		item = current
+		found = true
+	} else {
+		c.bindItem(name, item)
+	}
 	c.mu.Unlock()
 	return item, found
 }
@@ -440,6 +470,10 @@ func (c *Cache) Rename(name string, newName string, newObj fs.Object) (err error
 // rename requires a reservation covering both names.
 func (c *Cache) rename(name string, newName string, newObj fs.Object) (err error) {
 	item, _ := c.get(name)
+	// Both names are reserved by this mutation. An initializer admitted
+	// earlier must settle before either physical pathname can be replaced.
+	c.lockNames(name, newName)
+	c.mu.Unlock()
 	err = item.rename(name, newName, newObj)
 	if err != nil {
 		return err
@@ -448,8 +482,10 @@ func (c *Cache) rename(name string, newName string, newObj fs.Object) (err error
 	// Move the item in the cache
 	c.mu.Lock()
 	if item, ok := c.item[name]; ok {
-		c.item[newName] = item
-		delete(c.item, name)
+		c.bindItem(newName, item)
+		c.bindItem(name, nil)
+		delete(c.errItems, name)
+		delete(c.errOwners, name)
 	}
 	c.mu.Unlock()
 
@@ -506,10 +542,16 @@ func (c *Cache) DirRename(oldDirName string, newDirName string) (err error) {
 // have completely uploaded yet.
 func (c *Cache) Remove(name string) (wasWriting bool) {
 	name = clean(name)
-	c.mu.Lock()
+	c.lockNames(name)
+	// Legacy cache removal is advisory while an explicit namespace mutation
+	// owns this name. Its owner already drains and retires the correct Item.
+	if c.mutations[name] != nil {
+		c.mu.Unlock()
+		return false
+	}
 	item := c.item[name]
 	if item != nil {
-		delete(c.item, name)
+		c.bindItem(name, nil)
 	}
 	c.mu.Unlock()
 	if item == nil {
@@ -620,101 +662,62 @@ func (c *Cache) KickCleaner() {
 // removeNotInUse removes items not in use with a possible maxAge cutoff
 // called with cache mutex locked and up-to-date c.used (as we update it directly here)
 func (c *Cache) removeNotInUse(item *Item, maxAge time.Duration, emptyOnly bool) {
-	removed, spaceFreed := item.RemoveNotInUse(maxAge, emptyOnly)
-	// The item space might be freed even if we get an error after the cache file is removed
-	// The item will not be removed or reset the cache data is dirty (DataDirty)
-	c.used -= spaceFreed
-	if removed {
-		fs.Infof(c.fremote, "vfs cache RemoveNotInUse (maxAge=%d, emptyOnly=%v): item %s was removed, freed %d bytes", maxAge, emptyOnly, item.GetName(), spaceFreed)
-		// Remove the entry
-		delete(c.item, item.name)
-	} else {
-		fs.Debugf(c.fremote, "vfs cache RemoveNotInUse (maxAge=%d, emptyOnly=%v): item %s not removed, freed %d bytes", maxAge, emptyOnly, item.GetName(), spaceFreed)
+	for _, binding := range c.bindings() {
+		if binding.item == item {
+			c.evictBinding(binding, maxAge, emptyOnly)
+			return
+		}
 	}
 }
 
 // Retry failed resets during purgeClean()
 func (c *Cache) retryFailedResets() {
-	// Some items may have failed to reset because there was not enough space
-	// for saving the cache item's metadata.  Redo the Reset()'s here now that
-	// we may have some available space.
-	if len(c.errItems) != 0 {
-		fs.Debugf(c.fremote, "vfs cache reset: before redoing reset errItems = %v", c.errItems)
-		for itemName := range c.errItems {
-			if retryItem, ok := c.item[itemName]; ok {
-				_, _, err := retryItem.Reset()
-				if err == nil || !fserrors.IsErrNoSpace(err) {
-					// TODO: not trying to handle non-ENOSPC errors yet
-					delete(c.errItems, itemName)
-				}
-			} else {
-				// The retry item was deleted because it was closed.
-				// No need to redo the failed reset now.
-				delete(c.errItems, itemName)
-			}
+	c.mu.Lock()
+	pending := make([]cacheBinding, 0, len(c.errOwners))
+	for name, binding := range c.errOwners {
+		if c.ownsBinding(binding) {
+			pending = append(pending, binding)
+		} else {
+			delete(c.errOwners, name)
+			delete(c.errItems, name)
 		}
-		fs.Debugf(c.fremote, "vfs cache reset: after redoing reset errItems = %v", c.errItems)
 	}
+	c.mu.Unlock()
+	for _, binding := range pending {
+		c.resetBinding(binding)
+	}
+	c.updateUsed()
 }
 
 // Remove cache files that are not dirty until the quota is satisfied
 func (c *Cache) purgeClean() {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	if c.quotasOK() {
-		return
-	}
-
-	var items Items
-
-	// Make a slice of clean cache files
-	for _, item := range c.item {
-		if !item.IsDirty() {
-			items = append(items, item)
-		}
-	}
-
-	sort.Sort(items)
-
-	// Reset items until the quota is OK
-	for _, item := range items {
-		if c.quotasOK() {
+	used := c.updateUsed()
+	candidates := c.maintenanceCandidates()
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].access.Before(candidates[j].access) })
+	for _, candidate := range candidates {
+		if c.quotaForSize(used) {
 			break
 		}
-		resetResult, spaceFreed, err := item.Reset()
-		// The item space might be freed even if we get an error after the cache file is removed
-		// The item will not be removed or reset if the cache data is dirty (DataDirty)
-		c.used -= spaceFreed
-		fs.Infof(c.fremote, "vfs cache purgeClean item.Reset %s: %s, freed %d bytes", item.GetName(), resetResult.String(), spaceFreed)
-		if resetResult == RemovedNotInUse {
-			delete(c.item, item.name)
-		}
-		if err != nil {
-			fs.Errorf(c.fremote, "vfs cache purgeClean item.Reset %s reset failed, err = %v, freed %d bytes", item.GetName(), err, spaceFreed)
-			c.errItems[item.name] = err
-		}
+		used -= c.resetBinding(candidate.cacheBinding)
 	}
-
-	// Reset outOfSpace without checking whether we have reduced cache space below the quota.
-	// This allows some files to reduce their pendingAccesses count to allow them to be reset
-	// in the next iteration of the purge cleaner loop.
-
+	c.updateUsed()
+	c.mu.Lock()
 	c.outOfSpace = false
 	c.cond.Broadcast()
+	c.mu.Unlock()
 }
 
 // purgeOld gets rid of any files that are over age
 func (c *Cache) purgeOld(maxAge time.Duration) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	// cutoff := time.Now().Add(-maxAge)
-	for _, item := range c.item {
-		c.removeNotInUse(item, maxAge, false)
+	for _, binding := range c.bindings() {
+		c.evictBinding(binding, maxAge, false)
 	}
+	c.updateUsed()
 	if c.quotasOK() {
+		c.mu.Lock()
 		c.outOfSpace = false
 		c.cond.Broadcast()
+		c.mu.Unlock()
 	}
 }
 
@@ -733,15 +736,27 @@ func (c *Cache) purgeEmptyDirs(dir string, leaveRoot bool) {
 
 // updateUsed updates c.used so it is accurate
 func (c *Cache) updateUsed() (used int64) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
-	newUsed := int64(0)
-	for _, item := range c.item {
-		newUsed += item.getDiskSize()
+	for {
+		c.mu.Lock()
+		epoch := c.bindingEpoch
+		bindings := make([]cacheBinding, 0, len(c.item))
+		for name, item := range c.item {
+			bindings = append(bindings, cacheBinding{name, item, c.epochs[name]})
+		}
+		c.mu.Unlock()
+		used = 0
+		for _, binding := range bindings {
+			used += binding.item.getDiskSize()
+		}
+		c.mu.Lock()
+		if c.bindingEpoch != epoch {
+			c.mu.Unlock()
+			continue
+		}
+		c.used = used
+		c.mu.Unlock()
+		return used
 	}
-	c.used = newUsed
-	return newUsed
 }
 
 // Check the available space for a disk is in limits.
@@ -774,7 +789,10 @@ func (c *Cache) maxSizeQuotaOK() bool {
 //
 // must be called with mu held.
 func (c *Cache) quotasOK() bool {
-	return c.maxSizeQuotaOK() && c.minFreeSpaceQuotaOK()
+	c.mu.Lock()
+	used := c.used
+	c.mu.Unlock()
+	return c.quotaForSize(used)
 }
 
 // Return true if any quotas set
@@ -785,33 +803,18 @@ func (c *Cache) haveQuotas() bool {
 // Remove clean cache files that are not open until the total space
 // is reduced below quota starting from the oldest first
 func (c *Cache) purgeOverQuota() {
+	used := c.updateUsed()
+	candidates := c.maintenanceCandidates()
+	sort.Slice(candidates, func(i, j int) bool { return candidates[i].access.Before(candidates[j].access) })
+	for _, candidate := range candidates {
+		used -= c.evictBinding(candidate.cacheBinding, 0, c.quotaForSize(used))
+	}
 	c.updateUsed()
-
-	c.mu.Lock()
-	defer c.mu.Unlock()
-
 	if c.quotasOK() {
-		return
-	}
-
-	var items Items
-
-	// Make a slice of unused files
-	for _, item := range c.item {
-		if !item.inUse() {
-			items = append(items, item)
-		}
-	}
-
-	sort.Sort(items)
-
-	// Remove items until the quota is OK
-	for _, item := range items {
-		c.removeNotInUse(item, 0, c.quotasOK())
-	}
-	if c.quotasOK() {
+		c.mu.Lock()
 		c.outOfSpace = false
 		c.cond.Broadcast()
+		c.mu.Unlock()
 	}
 }
 
@@ -854,13 +857,8 @@ func (c *Cache) clean(kicked bool) {
 	// Stats
 	c.mu.Lock()
 	newItems, newUsed := len(c.item), fs.SizeSuffix(c.used)
-	totalInUse := 0
-	for _, item := range c.item {
-		if item.inUse() {
-			totalInUse++
-		}
-	}
 	c.mu.Unlock()
+	totalInUse := c.TotalInUse()
 	uploadsInProgress, uploadsQueued := c.writeback.Stats()
 
 	stats := fmt.Sprintf("objects %d (was %d) in use %d, to upload %d, uploading %d, total size %v (was %v)",
@@ -899,10 +897,8 @@ func (c *Cache) cleaner(ctx context.Context) {
 
 // TotalInUse returns the number of items in the cache which are InUse
 func (c *Cache) TotalInUse() (n int) {
-	c.mu.Lock()
-	defer c.mu.Unlock()
-	for _, item := range c.item {
-		if item.inUse() {
+	for _, binding := range c.bindings() {
+		if binding.item.inUse() {
 			n++
 		}
 	}

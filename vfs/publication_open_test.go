@@ -78,18 +78,6 @@ func (o *publicationObject) Update(ctx context.Context, in io.Reader, src fs.Obj
 	return o.Object.Update(ctx, in, src, options...)
 }
 
-type publicationListingPause struct {
-	fs.Directory
-	entered chan struct{}
-	release chan struct{}
-	once    sync.Once
-}
-
-func (e *publicationListingPause) Remote() string {
-	e.once.Do(func() { close(e.entered); <-e.release })
-	return e.Directory.Remote()
-}
-
 func TestPublicationReplacementDuringDeferredOpen(t *testing.T) {
 	ctx := context.Background()
 	r := fstest.NewRun(t)
@@ -130,25 +118,18 @@ func TestPublicationReplacementDuringDeferredOpen(t *testing.T) {
 	remote.id.Store(2)
 	fresh, err := remote.NewObject(ctx, "wal")
 	require.NoError(t, err)
-	marker := &publicationListingPause{Directory: fs.NewDir("zzafter", time.Now()), entered: make(chan struct{}), release: make(chan struct{})}
-	var releaseMarker sync.Once
-	t.Cleanup(func() { releaseMarker.Do(func() { close(marker.release) }) })
-	locked := make(chan struct{})
-	listed := make(chan error, 1)
-	go func() {
-		root.mu.Lock()
-		close(locked)
-		e := root._readDirFromEntries(fs.DirEntries{fresh, marker}, nil, time.Now())
-		root.mu.Unlock()
-		listed <- e
+	// Hold the publication boundary explicitly. Listing preparation and lock
+	// waits now release Dir.mu, so a marker.Remote callback would pause before
+	// the observation is committed rather than in this publication window.
+	root.mu.Lock()
+	locked := true
+	defer func() {
+		if locked {
+			root.mu.Unlock()
+		}
 	}()
-	<-locked
 	remote.once.Do(func() { close(remote.release) })
-	select {
-	case <-marker.entered:
-	case <-time.After(5 * time.Second):
-		t.Fatal("listing did not accept external object")
-	}
+	f.setObjectNoUpdate(fresh, time.Now())
 	require.Equal(t, int64(2), f.getObject().(*publicationObject).id)
 	readDone := make(chan error, 1)
 	go func() { _, e := reader.ReadAt(make([]byte, 1), 0); readDone <- e }()
@@ -166,8 +147,8 @@ func TestPublicationReplacementDuringDeferredOpen(t *testing.T) {
 	}, 5*time.Second, time.Millisecond)
 	accepted := f.getObject().(*publicationObject).id
 	t.Logf("File ID after deferred cache open = %d", accepted)
-	releaseMarker.Do(func() { close(marker.release) })
-	require.NoError(t, <-listed)
+	root.mu.Unlock()
+	locked = false
 	require.NoError(t, <-readDone)
 	_, err = reader.WriteAt([]byte("pending bytes!"), 0)
 	require.NoError(t, err)

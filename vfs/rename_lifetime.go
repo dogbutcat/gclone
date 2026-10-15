@@ -92,7 +92,12 @@ func (d *Dir) lockRename(oldName, newName string, destDir *Dir) (Node, *File, fu
 		}
 		d.mu.Lock()
 		resolvedSource, sourceErr := d._renameBinding(oldName)
-		source.mu.RLock()
+		if !source.mu.TryRLock() {
+			d.waitFile(source)
+			d.mu.Unlock()
+			unlock()
+			continue
+		}
 		validSource := resolvedSource == source && d.items[sourceName] == source && source.d == d && source.leaf == sourceName && !source.unlinked && !source.unlinking
 		source.mu.RUnlock()
 		d.mu.Unlock()
@@ -100,7 +105,12 @@ func (d *Dir) lockRename(oldName, newName string, destDir *Dir) (Node, *File, fu
 		resolvedTarget, targetErr := destDir._renameBinding(newName)
 		validTarget := resolvedTarget == dest && destDir.items[targetName] == dest
 		if target != nil {
-			target.mu.RLock()
+			if !target.mu.TryRLock() {
+				destDir.waitFile(target)
+				destDir.mu.Unlock()
+				unlock()
+				continue
+			}
 			validTarget = validTarget && target.d == destDir && target.leaf == targetName && !target.unlinked && !target.unlinking
 			target.mu.RUnlock()
 		}
@@ -121,38 +131,59 @@ func (d *Dir) lockRename(oldName, newName string, destDir *Dir) (Node, *File, fu
 func (f *File) replaceDestination(d *Dir, name string, target *File, action func(*File) (bool, error)) error {
 	// A concurrent rename to an initially absent target has no shared File
 	// lock. Verify again after the cache reservation excludes that rename.
-	d.mu.Lock()
 	var expected Node
 	if target != nil {
 		expected = target
 	}
-	resolved, bindingErr := d._renameBinding(name)
-	if bindingErr != nil {
+	for {
+		d.mu.Lock()
+		resolved, bindingErr := d._renameBinding(name)
+		if bindingErr != nil {
+			d.mu.Unlock()
+			return bindingErr
+		}
+		if resolved != expected {
+			d.mu.Unlock()
+			return errRenameBindingChanged
+		}
+		if target != nil {
+			if !target.mu.TryLock() {
+				d.waitFile(target)
+				d.mu.Unlock()
+				continue
+			}
+			target.unlinking = true
+			target.mu.Unlock()
+		}
 		d.mu.Unlock()
-		return bindingErr
+		break
 	}
-	if resolved != expected {
-		d.mu.Unlock()
-		return errRenameBindingChanged
-	}
-	if target != nil {
-		target.mu.Lock()
-		target.unlinking = true
-		target.mu.Unlock()
-	}
-	d.mu.Unlock()
 	committed, err := action(target)
 	if target != nil {
 		var recoveryErr *vfscache.RenameRecoveryError
 		if committed {
 			// Replace the visible binding under one directory lock: readers
 			// must never observe an absent destination between generations.
-			d.mu.Lock()
-			target.mu.Lock()
+			for {
+				d.mu.Lock()
+				if !target.mu.TryLock() {
+					d.waitFile(target)
+					d.mu.Unlock()
+					continue
+				}
+				if !f.mu.TryRLock() {
+					target.mu.Unlock()
+					d.waitFile(f)
+					d.mu.Unlock()
+					continue
+				}
+				break
+			}
 			target.unlinked, target.unlinking = true, false
 			target.pendingRenameFun = nil
+			d._addObjectLeaf(f, f.leaf)
+			f.mu.RUnlock()
 			target.mu.Unlock()
-			d._addObject(f)
 			d.mu.Unlock()
 		} else if errors.As(err, &recoveryErr) {
 			d.unlinkFile(target)
