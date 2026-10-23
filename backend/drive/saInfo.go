@@ -15,13 +15,17 @@ type Sa struct {
 }
 
 type SaInfo struct {
-	sas       map[int]Sa
-	activeIdx int
-	saPool    map[string]int
-	invalid   map[string]bool
+	sas        map[int]Sa
+	activeIdx  int
+	saPool     map[string]int
+	invalid    map[string]bool
+	strategy   string
+	folderRoot string
+	folders    *saFolderRotation
 }
 
 func (sa *SaInfo) updateSas(data []string, activeSa string) {
+	defer sa.rebuildFolderRotation()
 	convSas := make(map[int]Sa)
 	convData := make(map[string]int)
 
@@ -68,6 +72,9 @@ func (sa *SaInfo) findIdxByStr(str string) int {
 }
 
 func (sa *SaInfo) rollup() string {
+	if sa.strategy == saStrategyCrossFolder {
+		return sa.nextCrossFolder()
+	}
 	existLen := len(sa.sas)
 	nextIdx := -1
 	for i := sa.activeIdx + 1; i < existLen; i++ {
@@ -95,6 +102,7 @@ func (sa *SaInfo) rollup() string {
 func (sa *SaInfo) activeSa(saPath string) {
 	if entry, ok := sa.saPool[saPath]; ok {
 		sa.activeIdx = entry
+		sa.recordFolderActivation(saPath)
 	}
 }
 
@@ -116,6 +124,10 @@ func (sa *SaInfo) staleSa(target string) (bool, string) {
 	if sa.isPoolEmpty() {
 		sa.activeIdx = -1
 		return true, ""
+	}
+	if sa.strategy == saStrategyCrossFolder {
+		candidate := sa.quotaReplacement(target)
+		return candidate == "", candidate
 	}
 	if ret := sa.randomPick(); ret != -1 {
 		sa.activeIdx = ret
@@ -198,6 +210,7 @@ func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) error {
 			return err
 		}
 	}
+	committedFile := activeSa
 	valid := make([]string, 0, len(files))
 	seen := make(map[string]bool, len(files))
 	for _, name := range files {
@@ -230,6 +243,12 @@ func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) error {
 	if !activePresent {
 		activeSa = ""
 	}
+	root, err := filepath.Abs(filepath.Clean(dirPath))
+	if err != nil {
+		return err
+	}
+	sa.folderRoot = root
 	sa.updateSas(valid, activeSa)
+	sa.recordFolderActivation(committedFile)
 	return nil
 }

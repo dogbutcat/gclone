@@ -91,6 +91,99 @@ discovery is excluded when rotation next tries it, allowing other candidates to
 be tried. A repaired file becomes eligible on a later successful directory rescan
 or restart; this is not a live file watcher. Server-side revocation, permissions
 and quota errors remain governed by the existing request/retry behavior.
+
+#### SA rotation strategy
+
+Set `service_account_file_strategy` in `rclone.conf`, or use
+`--drive-service-account-file-strategy` on the command line:
+
+| Value | Proactive rolling (`rolling_sa = true`) | Quota-triggered switching |
+| --- | --- | --- |
+| `default` (default) | Existing sequential file rotation | Existing random account selection |
+| `cross-folder` | Prefer the next eligible directory group | Prefer the next eligible directory group |
+
+`cross-folder` requires `service_account_file_path`. It applies to both switching
+paths, but does not itself enable proactive rotation; set `rolling_sa = true`
+separately. Initial selection with `random_pick_sa` is unchanged: it chooses
+randomly from the valid files in the directory, rather than choosing a group.
+`service_account_file` is optional when `random_pick_sa = true`.
+Quota-triggered switching still follows the existing retry rules: it handles
+`rateLimitExceeded` / `userRateLimitExceeded` with a configured directory when
+`stop_on_upload_limit` is false. The strategy does not override that stop option.
+The `default` strategy does not require a directory for normal OAuth use.
+
+For example, `project1/a.json` and `project1/nested/b.json` belong to the same
+group, while `project2/a.json` belongs to another. Groups and files are sorted
+by full path. Each group has its own circular position: groups with fewer files
+wrap around rather than dropping out, so unequal group sizes still alternate.
+JSON files directly in the root form a separate group. An explicitly selected
+file outside the root is grouped by its parent directory.
+
+Unavailable accounts are skipped individually. If no other group has an eligible
+account, selection falls back to another account in the current group. Successful
+switches advance the group's position; failed or cancelled construction does not.
+If the active client's credential file is removed, rotation still uses that
+client's original group when choosing a replacement. A failed or cancelled
+replacement leaves the active client unchanged.
+
+For example, with `/path/to/accounts` containing:
+
+```text
+accounts/
+  project1/
+    a.json
+    b.json
+    nested/c.json
+  project2/
+    a.json
+```
+
+Starting from `project1/a.json`, successful switches follow
+`project2/a.json` → `project1/b.json` → `project2/a.json` →
+`project1/nested/c.json` → `project2/a.json` → `project1/a.json`.
+This example assumes every file remains eligible and no other switch intervenes.
+The single-file group keeps its turn instead of being exhausted after one use.
+
+`rclone.conf` example (replace the paths and folder ID with your own values):
+
+```ini
+[gc]
+type = drive
+scope = drive
+service_account_file = /path/to/accounts/project1/a.json
+service_account_file_path = /path/to/accounts
+service_account_file_strategy = cross-folder
+rolling_sa = true
+rolling_count = 4
+root_folder_id = FOLDER_ID
+```
+
+With a mount-enabled build (see BUILD), mount using that configuration:
+
+```sh
+gclone mount gc: /path/to/mountpoint \
+  --config /path/to/rclone.conf \
+  --vfs-cache-mode=full
+```
+
+Or supply the strategy and initial random selection on the command line for an
+existing `gc` Drive remote:
+
+```sh
+gclone mount gc: /path/to/mountpoint \
+  --config /path/to/rclone.conf \
+  --drive-service-account-file-path=/path/to/accounts \
+  --drive-service-account-file-strategy=cross-folder \
+  --drive-random-pick-sa \
+  --drive-rolling-sa --drive-rolling-count=4 \
+  --vfs-cache-mode=full
+```
+
+All selected SAs need permission to access the target. Directory groups are
+user-defined; folder names do not establish Google Cloud project identities.
+`rolling_count` sets transfer concurrency, not a reservation of a unique SA for
+each concurrent transfer. Rotation does not guarantee avoidance of Google quotas
+or permission failures.
   
 ### 2.Support incoming id
 If the original rclone is across team disks or shared folders, multiple configuration drive letters are required for operation.

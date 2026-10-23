@@ -797,6 +797,11 @@ See: https://developers.google.com/workspace/drive/api/guides/limited-expansive-
 			Help:     "Service Account Credentials JSON files directory (searched recursively).\n\nLeave blank normally.\nNeeded only if you want use SA auto switch." + env.ShellExpandHelp,
 			Advanced: true,
 		}, {
+			Name:     "service_account_file_strategy",
+			Help:     "SA rotation strategy: default preserves existing selection; cross-folder alternates first-level directory groups for rolling and quota switches. The cross-folder strategy requires service_account_file_path. Initial random selection is unchanged.",
+			Default:  saStrategyDefault,
+			Advanced: true,
+		}, {
 			Name:     "rolling_sa",
 			Help:     "Automaticly switching Service Account avoid account limit",
 			Default:  false,
@@ -877,10 +882,11 @@ type Options struct {
 	Enc                       encoder.MultiEncoder `config:"encoding"`
 	EnvAuth                   bool                 `config:"env_auth"`
 	//-----------------------------------------------------------
-	ServiceAccountFilePath string `config:"service_account_file_path"`
-	RollingSA              bool   `config:"rolling_sa"`
-	RollingCount           int    `config:"rolling_count"`
-	RandomPickSA           bool   `config:"random_pick_sa"`
+	ServiceAccountFilePath     string `config:"service_account_file_path"`
+	ServiceAccountFileStrategy string `config:"service_account_file_strategy"`
+	RollingSA                  bool   `config:"rolling_sa"`
+	RollingCount               int    `config:"rolling_count"`
+	RandomPickSA               bool   `config:"random_pick_sa"`
 	//-----------------------------------------------------------
 }
 
@@ -1119,11 +1125,7 @@ func (f *Fs) changeSvcForSA(ctx context.Context, failedFile string) {
 		if !errors.As(switchErr, &credentialErr) {
 			break
 		}
-		if idx := sfp.randomPick(); idx >= 0 {
-			newSa = sfp.sas[idx].saPath
-		} else {
-			newSa = ""
-		}
+		newSa = sfp.quotaReplacement(oldFile)
 	}
 	// Preserve the committed client when no replacement can be constructed.
 	sfp.revertStaleSa(oldFile)
@@ -1163,7 +1165,7 @@ func (f *Fs) rollingSvc(ctx context.Context) {
 		if ctx.Err() != nil {
 			return
 		}
-		newSa := sfp.rollup()
+		newSa := sfp.rollingReplacement(f.serviceLocked().file)
 		if newSa == "" {
 			return
 		}
@@ -1613,7 +1615,10 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 	}
 	//-----------------------------------------------------------
 	maybeIsFile := false
-	saInfo := new(SaInfo)
+	saInfo, err := newSAInfo(opt.ServiceAccountFileStrategy, opt.ServiceAccountFilePath)
+	if err != nil {
+		return nil, err
+	}
 	// 添加  {id} 作为根目录功能
 	if path != "" && path[0:1] == "{" {
 		idIndex := strings.Index(path, "}")
@@ -3858,6 +3863,11 @@ func (f *Fs) changeServiceAccountPathLocked(ctx context.Context, file string) (e
 		if err != nil {
 			return fmt.Errorf("couldn't create Drive v2 client: %w", err)
 		}
+	}
+	// Construction may complete after cancellation (for example during a local
+	// credential read). Publish neither the client nor its identity in that case.
+	if err := ctx.Err(); err != nil {
+		return err
 	}
 	f.client, f.svc, f.v2Svc = client, service, v2
 	f.opt.ServiceAccountFile = options.ServiceAccountFile
