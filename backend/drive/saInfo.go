@@ -3,11 +3,10 @@ package drive
 import (
 	"fmt"
 	"math/rand"
-	"os"
 	"path/filepath"
 	"time"
 
-	"github.com/rclone/rclone/lib/env"
+	"github.com/rclone/rclone/fs"
 )
 
 type Sa struct {
@@ -19,6 +18,7 @@ type SaInfo struct {
 	sas       map[int]Sa
 	activeIdx int
 	saPool    map[string]int
+	invalid   map[string]bool
 }
 
 func (sa *SaInfo) updateSas(data []string, activeSa string) {
@@ -31,6 +31,7 @@ func (sa *SaInfo) updateSas(data []string, activeSa string) {
 	}
 	sa.sas = convSas
 	sa.saPool = convData
+	sa.invalid = make(map[string]bool)
 	sa.activeIdx = -1
 	if len(data) == 0 || activeSa == "" {
 		return
@@ -161,6 +162,9 @@ func (sa *SaInfo) isPoolEmpty() bool {
 }
 
 func (sa *SaInfo) revertStaleSa(target string) {
+	if sa.invalid[target] {
+		return
+	}
 	if target == "" {
 		return
 	}
@@ -174,29 +178,58 @@ func (sa *SaInfo) revertStaleSa(target string) {
 
 }
 
-func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) error {
-	var fileNames []string
-	dirPath = filepath.Clean(env.ShellExpand(dirPath))
-	dir_list, err := os.ReadDir(dirPath)
-	if err != nil {
-		return fmt.Errorf("read service account directory %q: %w", dirPath, err)
+// rejectFile is called under the same rotation lock as other pool mutations.
+func (sa *SaInfo) rejectFile(name string) {
+	if sa.invalid == nil {
+		sa.invalid = make(map[string]bool)
 	}
-	for _, v := range dir_list {
-		if v.IsDir() || filepath.Ext(v.Name()) != ".json" {
+	sa.invalid[name] = true
+	sa.markStaleSa(name)
+}
+
+func (sa *SaInfo) loadInfoFromDir(dirPath string, activeSa string) error {
+	files, err := discoverServiceAccountFiles(dirPath)
+	if err != nil {
+		return err
+	}
+	if activeSa != "" {
+		activeSa, err = filepath.Abs(filepath.Clean(activeSa))
+		if err != nil {
+			return err
+		}
+	}
+	valid := make([]string, 0, len(files))
+	seen := make(map[string]bool, len(files))
+	for _, name := range files {
+		seen[name] = true
+		if _, err := readServiceAccountFile(name); err != nil {
+			fs.Errorf(nil, "Skipping %v", err)
 			continue
 		}
-		filePath := filepath.Join(dirPath, v.Name())
-		info, err := os.Stat(filePath)
-		if err != nil {
-			return fmt.Errorf("inspect service account file %q: %w", filePath, err)
-		}
-		if info.Mode().IsRegular() {
-			fileNames = append(fileNames, filePath)
+		valid = append(valid, name)
+	}
+	// Keep a valid explicitly selected account outside the directory, as before.
+	if activeSa != "" && !seen[activeSa] {
+		if _, err := readServiceAccountFile(activeSa); err == nil {
+			valid = append(valid, activeSa)
+		} else {
+			fs.Errorf(nil, "Skipping %v", err)
+			activeSa = ""
 		}
 	}
-	if len(fileNames) == 0 {
-		return fmt.Errorf("service account directory %q contains no JSON files", dirPath)
+	if len(valid) == 0 {
+		return fmt.Errorf("service account directory %q contains no usable credentials", dirPath)
 	}
-	sa.updateSas(fileNames, env.ShellExpand(activeSa))
+	activePresent := false
+	for _, name := range valid {
+		if name == activeSa {
+			activePresent = true
+			break
+		}
+	}
+	if !activePresent {
+		activeSa = ""
+	}
+	sa.updateSas(valid, activeSa)
 	return nil
 }

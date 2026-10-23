@@ -539,7 +539,9 @@ func TestSAQuotaFailedSwitchRestoresPool(t *testing.T) {
 	assert.Equal(t, files[0], f.opt.ServiceAccountFile)
 	assert.Equal(t, 0, f.ServiceAccountFiles.activeIdx)
 	assert.False(t, f.ServiceAccountFiles.sas[0].isStale)
-	assert.Len(t, f.ServiceAccountFiles.saPool, 2)
+	// The committed client is retained, but the missing candidate is isolated.
+	assert.Equal(t, map[string]int{files[0]: 0}, f.ServiceAccountFiles.saPool)
+	assert.True(t, f.ServiceAccountFiles.invalid[files[1]])
 }
 
 func TestSARollingSingleAccount(t *testing.T) {

@@ -75,6 +75,22 @@ service_account_file_path = /root/accounts/
 root_folder_id = root  
 ```
 `/root/accounts/` Folder contains multiple access and edit permissions ***service account file(*.json)***.  
+
+The directory is searched recursively, so `project1/file.json` and
+`project2/file.json` can coexist. Normalized absolute paths identify credential
+files; basenames are never flattened or used as unique keys. Nested directory
+symlinks are not traversed. A symlink used as the root, or a file symlink pointing
+to a regular JSON file, is supported and retains the configured path identity.
+
+Pool discovery validates JSON type, account email presence and RSA private-key
+structure locally. Unreadable, missing or malformed candidates are skipped with
+path-only diagnostics; no token or Drive request is made during validation.
+An empty/unusable pool or directory traversal failure is reported, and a failed
+reload leaves the previous pool intact. A credential that becomes invalid after
+discovery is excluded when rotation next tries it, allowing other candidates to
+be tried. A repaired file becomes eligible on a later successful directory rescan
+or restart; this is not a live file watcher. Server-side revocation, permissions
+and quota errors remain governed by the existing request/retry behavior.
   
 ### 2.Support incoming id
 If the original rclone is across team disks or shared folders, multiple configuration drive letters are required for operation.
@@ -120,8 +136,8 @@ The default is 1; values above 4 are not recommended. Each request keeps its iss
 gclone copy gc:{share_field_id} gc:{folder_id2} --drive-random-pick-sa --drive-rolling-sa --drive-rolling-count=1
 ```
 
-- Select an initial SA from the regular `.json` files in `service_account_file_path`. `service_account_file` is optional in this mode; an inherited initial file or inline `service_account_credentials` does not override the selected file. Good companion with `rolling_sa`.
-- The directory is required and must contain a candidate file. Directory and selected credential errors are reported directly. Normal authentication precedence is unchanged when random selection is disabled.
+- Select an initial SA from the locally valid regular `.json` files recursively found in `service_account_file_path`. `service_account_file` is optional in this mode; an inherited initial file or inline `service_account_credentials` does not override the selected file. Good companion with `rolling_sa`.
+- The directory is required and must contain a usable credential file. Invalid candidates are skipped; directory traversal errors are reported directly. Normal authentication precedence is unchanged when random selection is disabled.
 
 ### 6.Support new command `gselfupdate` and `gversion`
 

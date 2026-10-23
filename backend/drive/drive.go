@@ -19,6 +19,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"path/filepath"
 	"slices"
 	"sort"
 	"strconv"
@@ -793,7 +794,7 @@ See: https://developers.google.com/workspace/drive/api/guides/limited-expansive-
 			Help: "Service Account Credentials JSON file path.\n\nLeave blank normally.\nNeeded only if you want use SA instead of interactive login." + env.ShellExpandHelp,
 		}, {
 			Name:     "service_account_file_path",
-			Help:     "Service Account Credentials JSON files directory.\n\nLeave blank normally.\nNeeded only if you want use SA auto switch." + env.ShellExpandHelp,
+			Help:     "Service Account Credentials JSON files directory (searched recursively).\n\nLeave blank normally.\nNeeded only if you want use SA auto switch." + env.ShellExpandHelp,
 			Advanced: true,
 		}, {
 			Name:     "rolling_sa",
@@ -1104,14 +1105,48 @@ func (f *Fs) changeSvcForSA(ctx context.Context, failedFile string) {
 	 * 创建 client 和 svc
 	 * replace old change function with offical one
 	 */
-	if err := f.changeServiceAccountFileLocked(ctx, os.ExpandEnv(newSa)); err == nil {
-		sfp.activeSa(newSa)
-		fs.Logf(nil, "loading gclone sa file: %s", opt.ServiceAccountFile)
-	} else {
-		sfp.revertStaleSa(oldFile)
-		sfp.activeSa(oldFile)
-		fmt.Println("change sa file: ", newSa, " failed: ", err)
+	for attempts := 0; attempts < len(sfp.sas) && newSa != ""; attempts++ {
+		if ctx.Err() != nil {
+			break
+		}
+		switchErr := f.tryPoolService(ctx, newSa)
+		if switchErr == nil {
+			sfp.activeSa(newSa)
+			fs.Logf(nil, "loading gclone sa file: %s", newSa)
+			return
+		}
+		var credentialErr *serviceAccountFileError
+		if !errors.As(switchErr, &credentialErr) {
+			break
+		}
+		if idx := sfp.randomPick(); idx >= 0 {
+			newSa = sfp.sas[idx].saPath
+		} else {
+			newSa = ""
+		}
 	}
+	// Preserve the committed client when no replacement can be constructed.
+	sfp.revertStaleSa(oldFile)
+	sfp.activeSa(oldFile)
+}
+
+// tryPoolService isolates local credential failures, not quota or network errors.
+// Caller holds waitChangeSvc; explicit switches retain their direct error behavior.
+func (f *Fs) tryPoolService(ctx context.Context, name string) error {
+	if err := inspectServiceAccountFile(name); err != nil {
+		f.ServiceAccountFiles.rejectFile(name)
+		fs.Errorf(f, "Skipping %v", err)
+		return err
+	}
+	err := f.changeServiceAccountPathLocked(ctx, name)
+	if err != nil {
+		var credentialErr *serviceAccountFileError
+		if errors.As(err, &credentialErr) {
+			f.ServiceAccountFiles.rejectFile(name)
+		}
+		fs.Errorf(f, "Service account switch failed: %v", err)
+	}
+	return err
 }
 
 // rolling sa account
@@ -1124,16 +1159,24 @@ func (f *Fs) rollingSvc(ctx context.Context) {
 			return
 		}
 	}
-	newSa := sfp.rollup()
-	if newSa == "" {
-		return
-	}
-	if err := f.changeServiceAccountFileLocked(ctx, os.ExpandEnv(newSa)); err == nil {
-		sfp.activeSa(newSa)
-		fs.Infof(nil, "rolling gclone sa file: %s", newSa)
-	} else {
-		// fs.Errorf(f, "roll sa file: %s failed: %w", newSa, err)
-		fmt.Println("roll sa file: ", newSa, " failed: ", err)
+	for attempts := 0; attempts < len(sfp.sas); attempts++ {
+		if ctx.Err() != nil {
+			return
+		}
+		newSa := sfp.rollup()
+		if newSa == "" {
+			return
+		}
+		err := f.tryPoolService(ctx, newSa)
+		if err == nil {
+			sfp.activeSa(newSa)
+			fs.Infof(nil, "rolling gclone sa file: %s", newSa)
+			return
+		}
+		var credentialErr *serviceAccountFileError
+		if !errors.As(err, &credentialErr) {
+			return
+		}
 	}
 }
 
@@ -1488,9 +1531,12 @@ func createOAuthClient(ctx context.Context, opt *Options, name string, m configm
 
 	// try loading service account credentials from env variable, then from a file
 	if len(opt.ServiceAccountCredentials) == 0 && opt.ServiceAccountFile != "" {
-		loadedCreds, err := os.ReadFile(env.ShellExpand(opt.ServiceAccountFile))
+		loadedCreds, err := os.ReadFile(opt.ServiceAccountFile)
 		if err != nil {
-			return nil, fmt.Errorf("error opening service account credentials file: %w", err)
+			return nil, &serviceAccountFileError{opt.ServiceAccountFile, "file unreadable"}
+		}
+		if validationErr := validateServiceAccountJSON(loadedCreds); validationErr != nil {
+			return nil, &serviceAccountFileError{opt.ServiceAccountFile, validationErr.Error()}
 		}
 		opt.ServiceAccountCredentials = string(loadedCreds)
 	}
@@ -1557,8 +1603,14 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 	if err != nil {
 		return nil, err
 	}
-	opt.ServiceAccountFile = env.ShellExpand(opt.ServiceAccountFile)
-	opt.ServiceAccountFilePath = env.ShellExpand(opt.ServiceAccountFilePath)
+	opt.ServiceAccountFile, err = serviceAccountPath(opt.ServiceAccountFile)
+	if err != nil {
+		return nil, err
+	}
+	opt.ServiceAccountFilePath, err = serviceAccountPath(opt.ServiceAccountFilePath)
+	if err != nil {
+		return nil, err
+	}
 	//-----------------------------------------------------------
 	maybeIsFile := false
 	saInfo := new(SaInfo)
@@ -1603,9 +1655,28 @@ func newFs(ctx context.Context, name, path string, m configmap.Mapper) (*Fs, err
 		return nil, fmt.Errorf("drive: chunk size: %w", err)
 	}
 
-	oAuthClient, err := createOAuthClient(ctx, opt, name, m)
-	if err != nil {
-		return nil, fmt.Errorf("drive: failed when making oauth client: %w", err)
+	var oAuthClient *http.Client
+	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		oAuthClient, err = createOAuthClient(ctx, opt, name, m)
+		if err == nil {
+			break
+		}
+		var credentialErr *serviceAccountFileError
+		if !opt.RandomPickSA || !errors.As(err, &credentialErr) {
+			return nil, fmt.Errorf("drive: failed when making oauth client: %w", err)
+		}
+		saInfo.rejectFile(opt.ServiceAccountFile)
+		fs.Errorf(nil, "Skipping %v", credentialErr)
+		idx := saInfo.randomPick()
+		if idx < 0 {
+			return nil, fmt.Errorf("drive: no usable service account credentials: %w", err)
+		}
+		opt.ServiceAccountFile = saInfo.sas[idx].saPath
+		opt.ServiceAccountCredentials = ""
+		saInfo.activeSa(opt.ServiceAccountFile)
 	}
 
 	root, err := parseDrivePath(path)
@@ -3746,10 +3817,26 @@ func (f *Fs) changeServiceAccountFile(ctx context.Context, file string) (err err
 
 // changeServiceAccountFileLocked replaces clients while the caller holds waitChangeSvc.
 func (f *Fs) changeServiceAccountFileLocked(ctx context.Context, file string) (err error) {
-	file = env.ShellExpand(file)
+	file, err = serviceAccountPath(file)
+	if err != nil {
+		return err
+	}
+	return f.changeServiceAccountPathLocked(ctx, file)
+}
+
+// Pool paths are already expanded and absolute. Do not expand literal dollar
+// signs in discovered filenames a second time.
+func (f *Fs) changeServiceAccountPathLocked(ctx context.Context, file string) (err error) {
 	current := f.serviceLocked()
+	currentPath := current.file
+	if currentPath != "" {
+		currentPath, err = filepath.Abs(filepath.Clean(currentPath))
+		if err != nil {
+			return err
+		}
+	}
 	fs.Debugf(nil, "Changing Service Account File from %s to %s", current.file, file)
-	if file == current.file {
+	if file == currentPath {
 		return nil
 	}
 	// Build privately. Neither a partial v1/v2 constructor nor a slow credential
